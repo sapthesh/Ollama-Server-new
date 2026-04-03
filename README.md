@@ -1,40 +1,41 @@
 # Ollama Service monitoring system
 
-
-
-This is a system for monitoring and detecting the availability and performance of Ollama services. It provides a modern web interface, supports multiple languages ​​(English), and has real-time detection and data display capabilities.
+This is a high-performance system for monitoring and detecting the availability of Ollama services. It provides a premium **Glassmorphism** web interface with real-time detection, TPS benchmarking, and automated data governance.
 
 ---
 
-## Features
+## 🔥 New Features
 
-- 🔍 Service Monitoring
-- Supports batch monitoring of Ollama services
-- Real-time display of monitoring status and results
-- Supports exporting monitoring results
-- Supports automatic FOFA scanning
-- 📊 Performance Monitoring
-- Tests service response time and TPS
-- Displays a list of available models
-- Visualizes performance data
-- 🌐 Multi-language Support
-- English interface
-- One-click language switching
-- 🎯 Advanced Filtering
-- Model filtering
-- TPS/update time sorting
-- Paginated display
+### 💎 Premium Glassmorphism UI
+- **Modern Aesthetic**: Built with `backdrop-blur-xl`, `bg-white/5`, and a thin `border-white/10`.
+- **Dynamic Status Glows**:
+  - 🔴 **Offline Mode**: Servers unreachable display a desaturated red glow and expansion is disabled.
+  - 🟢 **Neon Pulse**: Online servers feature a vibrant green "heartbeat" pulse animation.
+- **Accordion Model Discovery**: Organized grid of model tags with `hover-lift` internal transitions and header pill-shaped badges.
 
-## Technology Stack
+### 🧹 Daily Automated Pruning
+The system includes a built-in data governance service that:
+- **Health Checks**: Pings every IP in the master list every 24 hours.
+- **Automated Removal**: Automatically removes unreachable or dead IPs from the `public/data.json` and Redis storage.
+- **Metadata Sync**: Updates model lists and TPS values for all active servers.
 
-- ⚡️ Next.js 14 - React Framework
-- 🔥 TypeScript - Type Safety
-- 🎨 Tailwind CSS - Style Framework
-- 🌍 next-intl - Internationalization
-- 🔄 Server Components - Server-Side Components
-- 📱 Responsive Design - Mobile Adaptation
+### 🔍 Live Dashboard Discovery
+- **Personal Server List**: Add custom IPs directly from the dashboard; they are stored in your browser's `localStorage`.
+- **Zero-Backend Dependency**: Manage your own private list of servers while benefiting from the global monitoring tools.
 
-## Quick Start
+---
+
+## 🛠 Technology Stack
+
+- **Framework**: [Next.js 15.1.9](https://nextjs.org/) (Security Patched)
+- **Styling**: [Tailwind CSS 3.4](https://tailwindcss.com/)
+- **Components**: [Headless UI](https://headlessui.com/) & [Heroicons](https://heroicons.com/)
+- **State**: [React 19](https://react.dev/)
+- **Storage**: Browser LocalStorage & [Upstash Redis](https://upstash.com/)
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -44,168 +45,46 @@ This is a system for monitoring and detecting the availability and performance o
 ### Installation
 
 ```bash
-# Clone project
 git clone https://github.com/forrany/Awesome-Ollama-Server.git
 cd Awesome-Ollama-Server
-
-# Install dependencies
 npm install
-# or
-yarn install
 ```
 
-### Development Environment
+### Development
 
 ```bash
-# Start the development server
 npm run dev
-# or
-yarn dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000/) to view the application.
 
-### Production Environment
+---
 
-```bash
-# Build the project
-npm run build
-# or
-yarn build
+## 📅 Configuring Daily Pruning
 
-# Start the service
-npm start
-# or
-yarn start
-```
+To enable automated daily cleanup on Vercel:
 
-## Instructions
+1. **Environment Variable**: Add `CRON_SECRET` to your Vercel project environment variables.
+2. **Endpoint**: Configure a Vercel Cron job to hit `https://your-domain.com/api/cron/prune` every 24 hours.
+3. **Manual Trigger**: You can also manually trigger the pruning by calling the `pruneServersAction` from within the admin dashboard (if implemented).
 
-### Testing Service
+---
 
-1. Click the "Test Service" button
-2. In the dialog box that pops up, enter the Ollama service address (one per line)
-3. Click "Start Testing"
-4. Wait for the test to complete and view the results
-5. Optionally download the test results
+## 🎯 Advanced Usage
 
-### Filtering and Sorting
+### Management Actions
+- **Copy URL**: One-click copy with visual heartbeat feedback.
+* **Benchmark**: Re-test a specific server's TPS and model list instantly.
+* **Delete**: Instantly remove a server from your personal and/or master list.
 
-- Use the model filter to select a specific model
-- Sort by TPS or update time
-- Use the search box to quickly find a model
+---
 
-### Language Switching
-
-- Click the language switch button in the upper right corner
-- Select English
-
-## Project Structure
-
-```
-src/
-├── app/ # Next.js application directory
-├── components/ # React components
-├── i18n/ # Internationalization files
-├── lib/ # Utility functions
-├── types/ # TypeScript type definitions
-└── config/ # Configuration files
-```
-
-## Environment Variables
-
-Create a `.env` file and set the following variables. Github Actions will automatically monitor and upload.
-
-```
-# Optional: Redis configuration (if used)
-
-UPSTASH_REDIS_URL=your-redis-url
-
-UPSTASH_REDIS_TOKEN=your-redis-token
-
-# Optional: FOFA scan country list (if used)
-
-COUNTRYS=US,CN,RU
-```
-
-## Contribution Guidelines
-
-1. Fork the project
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a pull request
-
-## License
-
-This project is open source under the MIT License - see the [LICENSE](https://github.com/sapthesh/Ollama-Server/blob/main/LICENSE) file for details.
-
-## Author
-
-Vincent Ko (@forrany) - [GitHub](https://github.com/forrany)
-
-## Disclaimer
+## 🛡 Disclaimer
 
 1. This project is for security research and educational purposes only.
-2. This project may not be used for any illegal purposes.
-3. The author is not responsible for any losses caused by the use of this project.
-4. Data is sourced from the internet. If there is any infringement, please contact the author to remove it.
+2. The author is not responsible for any losses caused by the use of this project.
+3. Data is sourced from the internet; users are responsible for compliance with local regulations.
 
-## Star History
+## 📄 License
 
-[![Star History Chart](https://api.star-history.com/svg?repos=sapthesh/Ollama-Server&type=Date)](https://star-history.com/#sapthesh/Ollama-Server&Date)
-
-## Docker Deployment
-
-The project supports Docker deployment, making it easy to quickly set up in various environments.
-
-### Deployment with Docker Compose (Recommended)
-
-1. Ensure [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) are installed.
-
-2. Clone the repository and navigate to the project directory.
-
-```bash
-git clone https://github.com/forrany/Awesome-Ollama-Server.git
-cd Awesome-Ollama-Server
-```
-
-3. Create an environment variable file (if using Upstash Redis data storage)
-
-```bash
-cp .env.example .env
-```
-
-Then edit the `.env` file and fill in the Upstash Redis credentials:
-
-```
-UPSTASH_REDIS_URL=your_redis_url
-UPSTASH_REDIS_TOKEN=your_redis_token
-```
-
-4. Start the Services
-
-```bash
-docker-compose up -d
-```
-
-This will start two services:
-- `ollama-monitor`: A web application, viewable at http://localhost:3000
-- `monitor-service`: A background monitoring service that automatically collects Ollama service data
-
-### Deploying with Docker Only
-
-If you only need to deploy a web application and don't need a backend monitoring service:
-
-```bash
-# Build the image
-docker build -t ollama-monitor .
-
-# Run the container
-docker run -d -p 3000:3000 --name ollama-monitor \
--e UPSTASH_REDIS_URL=your_redis_url \
--e UPSTASH_REDIS_TOKEN=your_redis_token \
-ollama-monitor
-```
-
-Visit [http://localhost:3000](http://localhost:3000/) to view the application.
+MIT License - see the [LICENSE](LICENSE) file for details.
