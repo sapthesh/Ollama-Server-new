@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Modal } from './Modal';
 import { OllamaService } from '@/types';
@@ -17,9 +17,6 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
   const [urlInput, setUrlInput] = useState('');
   const [detectResults, setDetectResults] = useState<OllamaService[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
-
-  // Keep track of servers that have already been updated
-  const updatedServersRef = useRef(new Set<string>());
 
   const handleDetect = async () => {
     const urls = urlInput.split('\n').filter(url => url.trim());
@@ -51,7 +48,7 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
         setDetectResults(prev => [...prev, ...initialServices]);
       }
       
-      // Start detection
+      // Start detection - Parent will handle saving to LocalStorage
       await onDetect(urls);
     } finally {
       setIsDetecting(false);
@@ -67,39 +64,6 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
         const latestResult = detectedResults.find(r => r.server === result.server);
         
         if (latestResult && !isDetecting) {
-          // If detection is successful and has available models, and status has changed, 
-          // and it hasn't been updated yet, asynchronously update the server list
-          if (latestResult.status === 'success' && 
-              latestResult.models.length > 0 && 
-              result.status !== 'success' &&
-              !updatedServersRef.current.has(latestResult.server) &&
-              !latestResult.isFake) {
-            // Mark this server as updated
-            updatedServersRef.current.add(latestResult.server);
-            
-            fetch('/api/update-servers', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ server: latestResult.server }),
-            })
-            .then(res => res.json())
-            .then(data => {
-              if (data.success) {
-                console.log(data.exists 
-                  ? `Server already in monitor list: ${latestResult.server}`
-                  : `Server added to monitor list: ${latestResult.server}`
-                );
-              }
-            })
-            .catch(error => {
-              // If update fails, remove the mark to retry later
-              updatedServersRef.current.delete(latestResult.server);
-              console.error('Failed to update server list:', error);
-            });
-          }
-          
           // If there is a latest result and not currently detecting, use the latest result
           return {
             ...latestResult,
@@ -121,7 +85,6 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
   const handleNewDetection = () => {
     setDetectResults([]);
     setUrlInput('');
-    updatedServersRef.current.clear();
   };
 
   const handleDownload = () => {
@@ -251,9 +214,9 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
                         ) : result.status === 'error' ? (
                           <span className="text-rose-400/70 text-sm">{t('detect.unavailable')}</span>
                         ) : (
-                          result.models.map((model, idx) => (
+                          result.models.map((model, _idx) => (
                             <span
-                              key={idx}
+                              key={_idx}
                               className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium
                                 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                             >

@@ -4,7 +4,7 @@ import { enUS } from 'date-fns/locale';
 import { PAGE_SIZE_OPTIONS } from '@/constants';
 import { useParams } from 'next/navigation';
 import { OllamaService } from '@/types';
-import { BeakerIcon } from '@heroicons/react/24/outline';
+import { BeakerIcon, ArrowPathIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import { ModelTestModal } from './ModelTestModal';
 
@@ -16,6 +16,8 @@ interface ServiceListProps {
   isClient: boolean;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
+  onBenchmark: (url: string) => void;
+  onRemove: (url: string) => void;
 }
 
 export function ServiceList({
@@ -26,10 +28,11 @@ export function ServiceList({
   isClient,
   onPageChange,
   onPageSizeChange,
+  onBenchmark,
+  onRemove,
 }: ServiceListProps) {
   const t = useTranslations();
-  const params = useParams();
-  const locale = params.locale as string;
+  useParams();
 
   const [selectedService, setSelectedService] = useState<OllamaService | null>(null);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -93,39 +96,52 @@ export function ServiceList({
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {services.map((service, index) => (
+              {services.map((service, _index) => (
                 <tr key={service.server} className={`group transition-colors duration-200 hover:bg-white/5
                   ${service.loading ? 'animate-pulse' : ''}`}>
                   <td className="px-6 py-5 whitespace-nowrap text-sm">
-                    <a
-                      href={service.server}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors duration-200"
-                    >
-                      {service.server}
-                    </a>
-                    {service.isFake && (
-                      <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-bold
-                        bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        {t('detect.fake')}
-                      </span>
-                    )}
+                    <div className="flex items-center space-x-3">
+                      <a
+                        href={service.server}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors duration-200"
+                      >
+                        {service.server}
+                      </a>
+                      {service.isFake && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-bold
+                          bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          {t('detect.fake')}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => onRemove(service.server)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 transition-all duration-200"
+                        title="Remove Server"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                   <td className="px-6 py-5 whitespace-nowrap">
                     {service.loading ? (
                       <div className="h-6 bg-white/10 rounded-lg animate-pulse w-24"></div>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {service.models.map((model, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium
-                              bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                          >
-                            {model}
-                          </span>
-                        ))}
+                        {service.models.length > 0 ? (
+                          service.models.map((model, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium
+                                bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                            >
+                              {model}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-500 text-xs italic">{t('detect.unavailable')}</span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -153,18 +169,32 @@ export function ServiceList({
                     )}
                   </td>
                   <td className="sticky right-0 px-6 py-5 whitespace-nowrap text-sm text-right bg-slate-900/90 backdrop-blur-md z-10">
-                    <button
-                      onClick={() => handleTest(service)}
-                      disabled={service.loading || service.models.length === 0}
-                      className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300
-                        ${service.loading || service.models.length === 0
-                          ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5'
-                          : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg hover:shadow-cyan-500/20'
-                        }`}
-                    >
-                      <BeakerIcon className="h-4 w-4 mr-2" />
-                      {t('service.test')}
-                    </button>
+                    <div className="flex items-center justify-end space-x-2">
+                      <button
+                        onClick={() => onBenchmark(service.server)}
+                        disabled={service.loading}
+                        className={`inline-flex items-center px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300
+                          ${service.loading
+                            ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5'
+                            : 'bg-white/5 text-cyan-400 hover:bg-white/10 border border-white/10'
+                          }`}
+                        title={t('service.benchmark')}
+                      >
+                        <ArrowPathIcon className={`h-4 w-4 ${service.loading ? 'animate-spin' : ''}`} />
+                      </button>
+                      <button
+                        onClick={() => handleTest(service)}
+                        disabled={service.loading || service.models.length === 0}
+                        className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300
+                          ${service.loading || service.models.length === 0
+                            ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5'
+                            : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg hover:shadow-cyan-500/20'
+                          }`}
+                      >
+                        <BeakerIcon className="h-4 w-4 mr-2" />
+                        {t('service.test')}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

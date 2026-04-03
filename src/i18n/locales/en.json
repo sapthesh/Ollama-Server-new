@@ -55,6 +55,8 @@
     "total": "{count} Services Total",
     "actions": "Actions",
     "test": "Test",
+    "benchmark": "Benchmark",
+    "benchmarking": "Benchmarking...",
     "filtered": "Filtered Models: {models}",
     "availableModels": "Available Models:"
   },

@@ -3,6 +3,9 @@ export interface OllamaService {
   models: string[];
   tps: number;
   lastUpdate: string;
+  status?: 'loading' | 'success' | 'error' | 'fake';
+  isFake?: boolean;
+  loading?: boolean;
 }
 
 export type SortField = 'tps' | 'lastUpdate';

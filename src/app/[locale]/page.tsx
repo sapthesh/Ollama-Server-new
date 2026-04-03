@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Header } from '@/components/Header';
 import { ModelFilter } from '@/components/ModelFilter';
@@ -9,6 +9,7 @@ import { Footer } from '@/components/Footer';
 import { OllamaService, SortField, SortOrder } from '@/types';
 import { useParams } from 'next/navigation';
 
+const STORAGE_KEY = 'ollama_servers';
 
 export default function Home() {
   const t = useTranslations();
@@ -17,7 +18,7 @@ export default function Home() {
   const [detectingServices, setDetectingServices] = useState<Set<string>>(new Set());
   const [detectedResults, setDetectedResults] = useState<OllamaService[]>([]);
 
-  const { locale } = useParams();
+  useParams();
   
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('tps');
@@ -35,36 +36,47 @@ export default function Home() {
   // Client-side rendering flag
   const [isClient, setIsClient] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      // Use absolute path
-      const response = await fetch('/data.json', {
-        // Add cache control
-        cache: 'no-store', // Or use 'force-cache' if you want to cache
-      });
-      const data = await response.json();
-      // Ensure all services have loading attribute
-      const servicesWithLoading = data.map((service: OllamaService) => ({
-        ...service,
-        loading: false,
-        status: service.models.length > 0 ? 'success' : 'error'
-      }));
-      setServices(servicesWithLoading);
-      
-      // Update available models list
-      const models = new Set<string>();
-      servicesWithLoading.forEach((service: OllamaService) => {
-        service.models.forEach(model => models.add(model));
-      });
-      setAvailableModels(Array.from(models).sort());
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
+  // Load servers from LocalStorage
+  const loadServersFromStorage = useCallback((): string[] => {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  }, []);
 
-  const handleDetect = async (urls: string[]): Promise<void> => {
+  // Save servers to LocalStorage
+  const saveServersToStorage = useCallback((urls: string[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(urls));
+  }, []);
+
+  const handleDetect = useCallback(async (urls: string[]): Promise<void> => {
     try {
       setDetectingServices(new Set(urls));
+      
+      // Update LocalStorage with new URLs
+      const currentUrls = loadServersFromStorage();
+      const uniqueUrls = Array.from(new Set([...currentUrls, ...urls]));
+      saveServersToStorage(uniqueUrls);
+
+      // Initialize/Update services state with loading status
+      setServices(prev => {
+        const next = [...prev];
+        urls.forEach(url => {
+          const index = next.findIndex(s => s.server === url);
+          if (index >= 0) {
+            next[index] = { ...next[index], loading: true, status: 'loading' };
+          } else {
+            next.push({
+              server: url,
+              models: [],
+              tps: 0,
+              lastUpdate: new Date().toISOString(),
+              loading: true,
+              status: 'loading'
+            });
+          }
+        });
+        return next;
+      });
       
       for (const url of urls) {
         try {
@@ -76,30 +88,26 @@ export default function Home() {
             body: JSON.stringify({ url }),
           });
 
-          if (!response.ok) {
-            console.error(`Detection failed: ${url}, status: ${response.status}`);
-            setDetectedResults(prev => [...prev, {
-              server: url,
-              models: [],
-              tps: 0,
-              lastUpdate: new Date().toISOString(),
-              status: 'error'
-            }]);
-            continue;
-          }
-
           const result = await response.json();
-          setDetectedResults(prev => [...prev, result]);
+          
+          setServices(prev => prev.map(s => s.server === url ? { ...result, loading: false } : s));
+          setDetectedResults(prev => {
+            const next = prev.filter(r => r.server !== url);
+            return [...next, result];
+          });
 
         } catch (error) {
           console.error(`Detection error: ${url}`, error);
-          setDetectedResults(prev => [...prev, {
+          const errorResult = {
             server: url,
             models: [],
             tps: 0,
             lastUpdate: new Date().toISOString(),
-            status: 'error'
-          }]);
+            status: 'error' as const,
+            loading: false
+          };
+          setServices(prev => prev.map(s => s.server === url ? errorResult : s));
+          setDetectedResults(prev => [...prev, errorResult]);
         } finally {
           setDetectingServices(prev => {
             const next = new Set(prev);
@@ -114,14 +122,45 @@ export default function Home() {
       console.error('Error during detection process:', error);
       setDetectingServices(new Set());
     }
+  }, [loadServersFromStorage, saveServersToStorage]);
+
+  const handleBenchmark = async (url: string) => {
+    // Re-run detection for a specific server
+    await handleDetect([url]);
+  };
+
+  const removeServer = (url: string) => {
+    const currentUrls = loadServersFromStorage();
+    const nextUrls = currentUrls.filter(u => u !== url);
+    saveServersToStorage(nextUrls);
+    setServices(prev => prev.filter(s => s.server !== url));
   };
 
   useEffect(() => {
-    // Only execute on client
-    if (typeof window !== 'undefined') {
-      fetchData();
+    setIsClient(true);
+    const urls = loadServersFromStorage();
+    if (urls.length > 0) {
+      // Initialize state and start detection
+      setServices(urls.map(url => ({
+        server: url,
+        models: [],
+        tps: 0,
+        lastUpdate: new Date().toISOString(),
+        loading: true,
+        status: 'loading'
+      })));
+      handleDetect(urls);
     }
-  }, []);
+  }, [loadServersFromStorage, handleDetect]);
+
+  // Update available models whenever services change
+  useEffect(() => {
+    const models = new Set<string>();
+    services.forEach(service => {
+      service.models?.forEach(model => models.add(model));
+    });
+    setAvailableModels(Array.from(models).sort());
+  }, [services]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -131,10 +170,6 @@ export default function Home() {
       return () => clearInterval(timer);
     }
   }, [countdown]);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Sorting function
   const toggleSort = (field: SortField) => {
@@ -272,6 +307,8 @@ export default function Home() {
             isClient={isClient}
             onPageChange={handlePageChange}
             onPageSizeChange={handlePageSizeChange}
+            onBenchmark={handleBenchmark}
+            onRemove={removeServer}
           />
         </div>
         
@@ -284,4 +321,4 @@ export default function Home() {
       </div>
     </main>
   );
-} 
+}
