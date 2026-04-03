@@ -8,6 +8,7 @@ import { ServiceList } from '@/components/ServiceList';
 import { Footer } from '@/components/Footer';
 import { OllamaService, SortField, SortOrder } from '@/types';
 import { useParams } from 'next/navigation';
+import { PlusIcon } from '@heroicons/react/24/outline';
 
 const STORAGE_KEY = 'ollama_servers';
 
@@ -17,6 +18,7 @@ export default function Home() {
   const [countdown, setCountdown] = useState(0);
   const [detectingServices, setDetectingServices] = useState<Set<string>>(new Set());
   const [detectedResults, setDetectedResults] = useState<OllamaService[]>([]);
+  const [newServerUrl, setNewServerUrl] = useState('');
 
   useParams();
   
@@ -80,6 +82,9 @@ export default function Home() {
       
       for (const url of urls) {
         try {
+          // Perform live fetch to tags endpoint
+          // Note: In a real production app, we might still proxy through /api/detect 
+          // to handle CORS issues if servers aren't configured with OLLAMA_ORIGINS="*"
           const response = await fetch('/api/detect', {
             method: 'POST',
             headers: {
@@ -123,6 +128,19 @@ export default function Home() {
       setDetectingServices(new Set());
     }
   }, [loadServersFromStorage, saveServersToStorage]);
+
+  const handleAddServer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newServerUrl.trim()) return;
+    
+    let url = newServerUrl.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `http://${url}`;
+    }
+    
+    handleDetect([url]);
+    setNewServerUrl('');
+  };
 
   const handleBenchmark = async (url: string) => {
     // Re-run detection for a specific server
@@ -283,6 +301,32 @@ export default function Home() {
               </svg>
             </a>
           </div>
+        </div>
+
+        {/* Discovery Input Field */}
+        <div className="mb-8">
+          <form onSubmit={handleAddServer} className="relative flex items-center max-w-2xl mx-auto group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <PlusIcon className="h-5 w-5 text-cyan-500 group-focus-within:text-cyan-400 transition-colors" />
+            </div>
+            <input
+              type="text"
+              value={newServerUrl}
+              onChange={(e) => setNewServerUrl(e.target.value)}
+              placeholder="Add server IP (e.g., 192.168.1.10:11434)"
+              className="block w-full pl-12 pr-32 py-4 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md 
+                text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 
+                focus:border-cyan-500/50 transition-all duration-300"
+            />
+            <button
+              type="submit"
+              className="absolute right-2 px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 
+                hover:to-blue-500 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-cyan-500/20 
+                transition-all duration-300"
+            >
+              Add Server
+            </button>
+          </form>
         </div>
 
         <div className="glass-card-dark rounded-2xl overflow-hidden mb-6">
