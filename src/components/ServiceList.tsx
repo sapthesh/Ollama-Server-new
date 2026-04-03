@@ -96,7 +96,7 @@ export function ServiceList({
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {services.map((service, _index) => (
+              {services.map((service) => (
                 <tr key={service.server} className={`group transition-colors duration-200 hover:bg-white/5
                   ${service.loading ? 'animate-pulse' : ''}`}>
                   <td className="px-6 py-5 whitespace-nowrap text-sm">
