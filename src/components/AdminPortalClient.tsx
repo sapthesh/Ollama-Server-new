@@ -6,7 +6,9 @@ import {
   TrashIcon, 
   ArrowPathIcon, 
   HeartIcon,
-  FingerPrintIcon
+  FingerPrintIcon,
+  CloudArrowUpIcon,
+  QueueListIcon
 } from '@heroicons/react/24/outline';
 
 interface HealthData {
@@ -21,16 +23,20 @@ interface AdminActions {
   purgeDatabase: () => Promise<{ success: boolean; error?: string }>;
   purgeStaticCache: () => Promise<{ success: boolean; error?: string }>;
   getSystemHealth: () => Promise<HealthData>;
+  bulkIngestIPs: (rawList: string) => Promise<{ success: boolean; count?: number; error?: string }>;
+  getQueueCount: () => Promise<number>;
 }
 
 export function AdminPortalClient() {
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [healthData, setHealthData] = useState<HealthData | null>(null);
+  const [queueCount, setQueueCount] = useState<number>(0);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [actions, setActions] = useState<AdminActions | null>(null);
+  const [bulkList, setBulkList] = useState('');
 
   useEffect(() => {
     setIsMounted(true);
@@ -40,12 +46,37 @@ export function AdminPortalClient() {
     });
   }, []);
 
+  useEffect(() => {
+    if (isAuthorized && actions) {
+      const interval = setInterval(async () => {
+        const count = await actions.getQueueCount();
+        setQueueCount(count);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthorized, actions]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (password && actions) {
       setIsAuthorized(true);
       handleCheckHealth(actions);
     }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkList.trim() || !actions) return;
+    setLoading(true);
+    const res = await actions.bulkIngestIPs(bulkList);
+    if (res.success) {
+      setBulkList('');
+      setStatus({ type: 'success', message: `QUEUED ${res.count} NODES FOR PROCESSING` });
+      // Trigger worker
+      fetch('/api/worker/process-queue', { method: 'POST' }).catch(console.error);
+    } else {
+      setStatus({ type: 'error', message: `INGEST FAILED: ${res.error}` });
+    }
+    setLoading(false);
   };
 
   const handlePurge = async () => {
@@ -113,10 +144,6 @@ export function AdminPortalClient() {
               />
               <div className="absolute bottom-0 left-0 h-0.5 w-0 bg-black dark:bg-white transition-all duration-500 group-focus-within:w-full" />
             </div>
-            
-            <p className="text-center text-[8px] font-black uppercase tracking-[0.3em] text-black/30 dark:text-white/10">
-              Session monitored // High level encryption active
-            </p>
             <button type="submit" className="hidden">Enter</button>
           </form>
         </div>
@@ -126,125 +153,116 @@ export function AdminPortalClient() {
 
   return (
     <main className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-300 p-6 md:p-12 font-mono">
-      <div className="max-w-5xl mx-auto space-y-16">
+      <div className="max-w-5xl mx-auto space-y-12">
         
         {/* Header Section */}
-        <div className="flex items-center justify-between border-b border-black/10 dark:border-white/5 pb-12">
+        <div className="flex items-center justify-between border-b border-black/10 dark:border-white/5 pb-8">
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
               <div className="w-2 h-2 bg-rose-500 animate-pulse" />
               <h1 className="text-2xl font-black uppercase tracking-[0.25em]">Admin Portal</h1>
             </div>
             <p className="text-[10px] text-black/50 dark:text-white/30 uppercase tracking-[0.3em] font-black">
-              Maintenance Terminal // Session.ID: {Math.random().toString(36).substring(7).toUpperCase()}
+              Maintenance Terminal // Recursive Worker Active
             </p>
           </div>
           <div className="flex flex-col items-end space-y-2">
              <ShieldCheckIcon className="w-8 h-8 text-black dark:text-white" />
-             <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]">Authorized</span>
+             <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 px-2 py-0.5 rounded-none border border-emerald-500/20">Authorized</span>
           </div>
         </div>
 
-        {/* Action Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Purge Database */}
-          <button 
-            onClick={handlePurge}
-            disabled={loading}
-            className="group relative flex flex-col items-start p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 hover:border-rose-500 transition-all duration-300 text-left space-y-6 overflow-hidden active:scale-95"
-          >
-            <div className="absolute inset-0 bg-rose-500/0 group-hover:bg-rose-500/5 transition-all duration-300" />
-            <TrashIcon className="w-6 h-6 text-black/40 dark:text-white/20 group-hover:text-rose-500 transition-colors" />
-            <div className="space-y-2 relative">
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] group-hover:text-rose-500">Purge Persistent Data</h2>
-              <p className="text-[9px] text-black/50 dark:text-white/30 uppercase leading-relaxed font-bold">Destroy all core records in the discovery table. Irreversible session cleanup.</p>
+        {/* Global Progress Ticker */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 space-y-4">
+             <div className="flex items-center justify-between">
+                <QueueListIcon className="w-6 h-6 text-cyan-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500 bg-cyan-500/10 px-3 py-1">Live Worker Queue</span>
+             </div>
+             <div className="space-y-1">
+                <h2 className="text-[24px] font-black uppercase tracking-tighter">{queueCount.toLocaleString()}</h2>
+                <p className="text-[10px] text-black/50 dark:text-white/30 uppercase tracking-widest font-black leading-relaxed">REMAINING IN UPLOAD_QUEUE // {Math.ceil(queueCount/50)} BATCHES TO GO</p>
+             </div>
+          </div>
+          
+          <div className="p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 space-y-4">
+            <HeartIcon className={`w-6 h-6 ${healthData?.status === 'ONLINE' ? 'text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'text-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]'} transition-all duration-500`} />
+            <div className="space-y-2">
+              <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Table Nodes Health</h2>
+              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest pt-2">
+                 <span className="text-black/40 dark:text-white/20">System Latency:</span>
+                 <span>{healthData?.latency || 'PROBING...'}</span>
+              </div>
             </div>
-          </button>
+          </div>
+        </div>
 
-          {/* Force Revalidate */}
+        {/* Bulk Ingest Section */}
+        <div className="p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 space-y-6">
+          <div className="flex items-center space-x-3">
+            <CloudArrowUpIcon className="w-5 h-5 text-black/40 dark:text-white/20" />
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Bulk IP Ingestion</h2>
+          </div>
+          <textarea
+            value={bulkList}
+            onChange={(e) => setBulkList(e.target.value)}
+            disabled={loading}
+            placeholder="PASTE 5000+ IPs HERE (ONE PER LINE)..."
+            className="w-full h-48 bg-black/5 dark:bg-[#050505] border border-black/10 dark:border-white/5 p-4 text-[10px] font-mono text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white transition-all uppercase leading-relaxed custom-scrollbar"
+          />
+          <button 
+            onClick={handleBulkUpload}
+            disabled={loading || !bulkList.trim()}
+            className="w-full py-4 bg-black dark:bg-white text-white dark:text-black text-[11px] font-black uppercase tracking-[0.3em] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-30"
+          >
+            {loading ? 'Processing List...' : 'Initiate Background Scan & Deduplicate'}
+          </button>
+          <p className="text-[9px] text-black/40 dark:text-white/10 uppercase italic">
+            Automated formatting enabled: IPs without protocol/port will be converted to http://[IP]:11434.
+          </p>
+        </div>
+
+        {/* Maintenance Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
           <button 
             onClick={handleRefreshCache}
             disabled={loading}
-            className="group relative flex flex-col items-start p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 hover:border-cyan-500 transition-all duration-300 text-left space-y-6 overflow-hidden active:scale-95"
+            className="flex flex-col items-start p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 hover:border-cyan-500 transition-all text-left space-y-4"
           >
-            <div className="absolute inset-0 bg-cyan-500/0 group-hover:bg-cyan-500/5 transition-all duration-300" />
-            <ArrowPathIcon className="w-6 h-6 text-black/40 dark:text-white/20 group-hover:text-cyan-500 transition-colors" />
-            <div className="space-y-2 relative">
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] group-hover:text-cyan-500">Flush System Cache</h2>
-              <p className="text-[9px] text-black/50 dark:text-white/30 uppercase leading-relaxed font-bold">Invalidate all server-side data fragments and force immediate re-discovery.</p>
+            <ArrowPathIcon className="w-5 h-5 text-black/40 dark:text-white/20 hover:text-cyan-500" />
+            <div className="space-y-1">
+               <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Force Revalidate</h2>
+               <p className="text-[9px] text-black/50 dark:text-white/30 uppercase font-bold">Clear dashboard fragments and sync with newly promoted nodes.</p>
             </div>
           </button>
 
-          {/* System Health */}
-          <div className="relative flex flex-col items-start p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 space-y-6">
-            <HeartIcon className={`w-6 h-6 ${healthData?.status === 'ONLINE' ? 'text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'text-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]'} transition-all duration-500`} />
-            <div className="space-y-4 w-full">
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Table.Layer Health</h2>
-              <div className="space-y-3 pt-2">
-                <div className="flex justify-between items-center border-b border-black/5 dark:border-white/5 pb-2">
-                  <span className="text-[9px] text-black/40 dark:text-white/20 uppercase font-black">Status:</span>
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${healthData?.status === 'ONLINE' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {healthData?.status || 'PROBING...'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center border-b border-black/5 dark:border-white/5 pb-2">
-                  <span className="text-[9px] text-black/40 dark:text-white/20 uppercase font-black">Latency:</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{healthData?.latency || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between items-center pb-2">
-                  <span className="text-[9px] text-black/40 dark:text-white/20 uppercase font-black">Nodes:</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{healthData?.count !== undefined ? healthData.count : '0'}</span>
-                </div>
-              </div>
+          <button 
+            onClick={handlePurge}
+            disabled={loading}
+            className="flex flex-col items-start p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 hover:border-rose-500 transition-all text-left space-y-4"
+          >
+            <TrashIcon className="w-5 h-5 text-black/40 dark:text-white/20 hover:text-rose-500" />
+            <div className="space-y-1">
+               <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Purge Databases</h2>
+               <p className="text-[9px] text-black/50 dark:text-white/30 uppercase font-bold">Wipe main nodes table. Use only for fleet reset.</p>
             </div>
-          </div>
+          </button>
         </div>
 
-        {/* Status Messages */}
         {status && (
-          <div className={`p-5 text-[10px] font-black uppercase tracking-[0.2em] border animate-in slide-in-from-top-2 duration-300
+          <div className={`p-4 text-[10px] font-black uppercase tracking-widest border animate-in slide-in-from-top-2
             ${status.type === 'success' ? 'border-emerald-500/50 text-emerald-500 bg-emerald-500/5' : 'border-rose-500/50 text-rose-500 bg-rose-500/5'}`}>
-            &gt; SYSTEM_LOG: {status.message}
+            &gt; {status.message}
           </div>
         )}
 
-        {/* Console Logs */}
-        <div className="space-y-6 pt-8">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-black/30 dark:text-white/20">Handshake.Diagnostic.Stream</h3>
-            <div className="flex items-center space-x-2">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-              <span className="text-[8px] font-black uppercase tracking-widest text-black/30 dark:text-white/10">Active Monitoring</span>
-            </div>
-          </div>
-          <div className="bg-zinc-50 dark:bg-[#050505] border border-black/10 dark:border-white/5 p-6 h-64 overflow-y-auto custom-scrollbar font-mono">
-            {healthData?.error ? (
-              <div className="space-y-2 animate-in fade-in duration-500">
-                <p className="text-[10px] text-rose-500 font-bold leading-relaxed">
-                  [{new Date().toISOString()}] CRITICAL_EXCEPTION_DETECTION
-                </p>
-                <p className="text-[10px] text-rose-500/80 uppercase font-black pl-4 border-l border-rose-500/30">
-                  {healthData.error}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 text-black/40 dark:text-white/10 font-bold text-[10px] uppercase leading-relaxed">
-                <p>[{new Date().toISOString()}] Authentication verified // Service Role active</p>
-                <p>[{new Date().toISOString()}] No anomalous behaviors detected in table.nodes handshake.</p>
-                <p>[{new Date().toISOString()}] Connection pool state: OPTIMAL</p>
-                <p>[{new Date().toISOString()}] Row.Level.Security bypassed for current administrative session.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Secondary Logout */}
+        {/* Console Logs Footer */}
         <div className="flex justify-center pt-8">
           <button 
             onClick={() => window.location.href = '/'}
-            className="group flex items-center space-x-3 px-8 py-3 bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all text-[10px] font-black uppercase tracking-[0.3em] active:scale-95"
+            className="text-[10px] font-black uppercase tracking-[0.3em] text-black/30 dark:text-white/10 hover:text-black dark:hover:text-white transition-colors"
           >
-            <span>Exit Session</span>
+            Exit Terminal Session
           </button>
         </div>
       </div>
