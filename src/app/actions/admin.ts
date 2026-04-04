@@ -39,22 +39,36 @@ export async function bulkIngestIPs(rawList: string) {
     if (formatted.length === 0) return { success: false, error: 'No valid IPs found' };
 
     // Use ignoreDuplicates: true to prevent ingest failure on existing records
-    const { error } = await adminSupabase
-      .from('upload_queue')
-      .upsert(formatted, { 
-        onConflict: 'raw_ip',
-        ignoreDuplicates: true 
-      });
+    // Chunk into batches of 100 on the backend to avoid transaction timeouts
+    const BATCH_SIZE = 100;
+    let insertedCount = 0;
+    
+    for (let i = 0; i < formatted.length; i += BATCH_SIZE) {
+      const batch = formatted.slice(i, i + BATCH_SIZE);
+      const { error } = await adminSupabase
+        .from('upload_queue')
+        .upsert(batch, { 
+          onConflict: 'raw_ip',
+          ignoreDuplicates: true 
+        });
 
-    if (error) {
-       console.error('Supabase Ingest Error:', error);
-       throw error;
+      if (error) {
+         console.error('Supabase Ingest Error:', error);
+         return { 
+           success: false, 
+           error: `INGEST_FAILED. Code: ${error.code}, Message: ${error.message}, Details: ${error.details || 'None'}` 
+         };
+      }
+      insertedCount += batch.length;
     }
     
-    return { success: true, count: formatted.length };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: `INGEST_FAILED: ${message}` };
+    return { success: true, count: insertedCount };
+  } catch (error: unknown) {
+    const err = error as { message?: string, code?: string, details?: string }; // Handle unknown error safely for properties
+    const message = err?.message || 'Unknown error';
+    const code = err?.code || 'NO_CODE';
+    const details = err?.details || 'No details';
+    return { success: false, error: `INGEST_EXCEPTION. Code: ${code}, Message: ${message}, Details: ${details}` };
   }
 }
 
