@@ -32,9 +32,9 @@ export async function purgeDatabase() {
   }
 }
 
-export async function forceRevalidate() {
+export async function purgeStaticCache() {
   try {
-    revalidatePath('/');
+    revalidatePath('/', 'layout');
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
