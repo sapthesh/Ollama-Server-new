@@ -1,25 +1,33 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { adminSupabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
+/**
+ * Admin Session Verification
+ * This is the gatekeeper for all administrative actions.
+ */
 export async function verifyAdmin(password: string) {
   // During build, environment variables might be missing
   if (!ADMIN_PASSWORD) return false;
   return password === ADMIN_PASSWORD;
 }
 
+/**
+ * Purge Database
+ * Destroys all node records using Service Role Key.
+ * Bypasses RLS to ensure complete cleanup.
+ */
 export async function purgeDatabase() {
-  if (!supabase) return { success: false, error: 'Database not initialized' };
+  if (!adminSupabase) return { success: false, error: 'Admin database not initialized' };
   
   try {
-    // Delete all rows from the nodes table
-    const { error } = await supabase
+    const { error } = await adminSupabase
       .from('nodes')
       .delete()
-      .neq('server', 'FORCE_DELETE_ALL'); // Common trick to delete all rows
+      .neq('server', 'FORCE_DELETE_ALL');
 
     if (error) throw error;
     
@@ -27,11 +35,15 @@ export async function purgeDatabase() {
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Purge error:', error);
+    console.error('CRITICAL: Purge error:', error);
     return { success: false, error: message };
   }
 }
 
+/**
+ * Force Revalidate
+ * Clears the Next.js cache and triggers a re-render.
+ */
 export async function purgeStaticCache() {
   try {
     revalidatePath('/', 'layout');
@@ -42,15 +54,33 @@ export async function purgeStaticCache() {
   }
 }
 
+/**
+ * Get System Health
+ * Performs a table-level check to verify read/write connectivity.
+ * Not just a ping; specifically verifies 'nodes' table access.
+ */
 export async function getSystemHealth() {
-  if (!supabase) return { status: 'OFFLINE' as const, error: 'Database not initialized', timestamp: new Date().toISOString() };
+  if (!adminSupabase) {
+    return { 
+      status: 'OFFLINE' as const, 
+      error: 'CRITICAL: adminSupabase not initialized.', 
+      timestamp: new Date().toISOString() 
+    };
+  }
 
   try {
     const startTime = Date.now();
-    const { count, error } = await supabase.from('nodes').select('*', { count: 'exact', head: true });
+    // Test actual table accessibility with a count query
+    const { count, error } = await adminSupabase
+      .from('nodes')
+      .select('*', { count: 'exact', head: true });
+    
     const latency = Date.now() - startTime;
 
-    if (error) throw error;
+    if (error) {
+      console.error('DB Connectivity Probe Failed:', error);
+      throw error;
+    }
 
     return {
       status: 'ONLINE' as const,
@@ -62,7 +92,7 @@ export async function getSystemHealth() {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return {
       status: 'OFFLINE' as const,
-      error: message,
+      error: `Table Access Denied: ${message}`,
       timestamp: new Date().toISOString(),
     };
   }

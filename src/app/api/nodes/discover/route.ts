@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { adminSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
       };
 
-      sendUpdate({ status: 'start', total: urls.length, message: `Starting discovery for ${urls.length} nodes...` });
+      sendUpdate({ status: 'start', total: urls.length, message: `Starting discovery with Service Role elevation...` });
 
       for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
@@ -53,30 +53,48 @@ export async function POST(req: Request) {
           clearTimeout(timeoutId);
 
           if (models && models.models) {
-            // Success: Upsert to Supabase
-            if (supabase) {
-              await supabase.from('nodes').upsert({
+            // Success: Upsert to Supabase with Service Role
+            if (adminSupabase) {
+              const { error } = await adminSupabase.from('nodes').upsert({
                 server: url,
                 models: models.models.map((m: { name: string }) => m.name),
                 status: 'success',
                 lastUpdate: new Date().toISOString()
               }, { onConflict: 'server' });
+
+              if (error) {
+                console.error(`Supabase Upsert Failed for ${url}:`, error);
+                sendUpdate({ status: 'error', url: maskIP(url), message: `DB ERROR: ${error.message}` });
+              } else {
+                sendUpdate({ status: 'success', url: maskIP(url), message: `Success: ${maskIP(url)} saved to database.` });
+              }
+            } else {
+              sendUpdate({ status: 'error', url: maskIP(url), message: 'DB ERROR: adminSupabase not initialized.' });
             }
-            sendUpdate({ status: 'success', url: maskIP(url), message: `Success: ${maskIP(url)} responded.` });
           } else {
-            // Failure: Immediate Prune
-            if (supabase) {
-              await supabase.from('nodes').delete().eq('server', url);
+            // Failure: Immediate Prune with Service Role
+            if (adminSupabase) {
+              const { error } = await adminSupabase.from('nodes').delete().eq('server', url);
+              if (error) {
+                console.error(`Supabase Delete Failed for ${url}:`, error);
+                sendUpdate({ status: 'error', url: maskIP(url), message: `DB ERROR: ${error.message}` });
+              } else {
+                sendUpdate({ status: 'fail', url: maskIP(url), message: `Pruned: ${maskIP(url)} is offline.` });
+              }
             }
-            sendUpdate({ status: 'fail', url: maskIP(url), message: `Pruned: ${maskIP(url)} is offline or invalid.` });
           }
-        } catch (_error) {
+        } catch (err) {
           clearTimeout(timeoutId);
-          // Timeout or abort: Immediate Prune
-          if (supabase) {
-            await supabase.from('nodes').delete().eq('server', url);
+          // Timeout or abort: Immediate Prune with Service Role
+          if (adminSupabase) {
+            const { error } = await adminSupabase.from('nodes').delete().eq('server', url);
+            if (error) {
+              console.error(`Supabase Delete Failed for ${url}:`, error);
+              sendUpdate({ status: 'error', url: maskIP(url), message: `DB ERROR: ${error.message}` });
+            } else {
+              sendUpdate({ status: 'fail', url: maskIP(url), message: `Timeout/Error: ${maskIP(url)} pruned (err: ${err instanceof Error ? err.message : 'timeout'}).` });
+            }
           }
-          sendUpdate({ status: 'fail', url: maskIP(url), message: `Timeout/Error: ${maskIP(url)} removed.` });
         }
       }
 
