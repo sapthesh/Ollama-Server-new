@@ -7,20 +7,15 @@ import { ModelFilter } from '@/components/ModelFilter';
 import { ServiceList } from '@/components/ServiceList';
 import { Footer } from '@/components/Footer';
 import { OllamaService, SortField, SortOrder } from '@/types';
-import { useParams } from 'next/navigation';
-import { PlusIcon } from '@heroicons/react/24/outline';
-
-const STORAGE_KEY = 'ollama_servers';
+import { supabase } from '@/lib/supabase';
 
 export default function Home() {
-  const t = useTranslations();
+  const _t = useTranslations();
   const [services, setServices] = useState<OllamaService[]>([]);
   const [countdown, setCountdown] = useState(0);
   const [detectingServices, setDetectingServices] = useState<Set<string>>(new Set());
   const [detectedResults, setDetectedResults] = useState<OllamaService[]>([]);
   const [newServerUrl, setNewServerUrl] = useState('');
-
-  useParams();
   
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('tps');
@@ -30,89 +25,134 @@ export default function Home() {
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Client-side rendering flag
   const [isClient, setIsClient] = useState(false);
 
-  // Load servers from LocalStorage
-  const loadServersFromStorage = useCallback((): string[] => {
-    if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  }, []);
+  // Fetch nodes from Supabase
+  const fetchNodes = useCallback(async () => {
+    try {
+      if (!supabase) return;
+      let query = supabase
+        .from('nodes')
+        .select('*', { count: 'exact' });
 
-  // Save servers to LocalStorage
-  const saveServersToStorage = useCallback((urls: string[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(urls));
-  }, []);
+      // Apply status filter
+      if (statusFilter === 'online') {
+        query = query.eq('status', 'success');
+      } else if (statusFilter === 'offline') {
+        query = query.eq('status', 'error');
+      }
+
+      // Apply sorting
+      const supabaseSortField = sortField === 'tps' ? 'tps' : 'lastUpdate';
+      query = query.order(supabaseSortField, { ascending: sortOrder === 'asc' });
+
+      // Apply pagination
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+
+      const { data, count, error } = await query;
+
+      if (error) throw error;
+
+      if (data) {
+        setServices(data.map(node => ({
+          server: node.server,
+          models: node.models || [],
+          tps: node.tps || 0,
+          lastUpdate: node.lastUpdate,
+          status: node.status,
+          loading: false
+        })));
+        setTotalCount(count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching nodes from Supabase:', error);
+    }
+  }, [currentPage, pageSize, sortField, sortOrder, statusFilter]);
+
+  // Remove node from Supabase
+  const removeNode = async (url: string) => {
+    try {
+      if (!supabase) return;
+      const { error } = await supabase
+        .from('nodes')
+        .delete()
+        .eq('server', url);
+
+      if (error) throw error;
+      
+      setServices(prev => prev.filter(s => s.server !== url));
+      setTotalCount(prev => prev - 1);
+    } catch (error) {
+      console.error('Error deleting node:', error);
+    }
+  };
 
   const handleDetect = useCallback(async (urls: string[]): Promise<void> => {
     try {
       setDetectingServices(new Set(urls));
       
-      // Update LocalStorage with new URLs
-      const currentUrls = loadServersFromStorage();
-      const uniqueUrls = Array.from(new Set([...currentUrls, ...urls]));
-      saveServersToStorage(uniqueUrls);
-
-      // Initialize/Update services state with loading status
-      setServices(prev => {
-        const next = [...prev];
-        urls.forEach(url => {
-          const index = next.findIndex(s => s.server === url);
-          if (index >= 0) {
-            next[index] = { ...next[index], loading: true, status: 'loading' };
-          } else {
-            next.push({
-              server: url,
-              models: [],
-              tps: 0,
-              lastUpdate: new Date().toISOString(),
-              loading: true,
-              status: 'loading'
-            });
-          }
-        });
-        return next;
-      });
-      
       for (const url of urls) {
         try {
-          // Perform live fetch to tags endpoint
-          // Note: In a real production app, we might still proxy through /api/detect 
-          // to handle CORS issues if servers aren't configured with OLLAMA_ORIGINS="*"
+          // Fail-Fast: Ping before saving
           const response = await fetch('/api/detect', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url }),
           });
 
           const result = await response.json();
           
-          setServices(prev => prev.map(s => s.server === url ? { ...result, loading: false } : s));
+          if (result.status === 'error') {
+            console.log(`Node ${url} is offline. Immediate pruning...`);
+            await removeNode(url);
+            setDetectedResults(prev => [...prev, result]);
+            continue;
+          }
+
+          // If alive, upsert to Supabase
+          if (!supabase) {
+            console.warn('Supabase not initialized, skipping persistence');
+            continue;
+          }
+
+          const { error } = await supabase
+            .from('nodes')
+            .upsert({
+              server: url,
+              models: result.models,
+              tps: result.tps,
+              lastUpdate: new Date().toISOString(),
+              status: result.isFake ? 'fake' : 'success'
+            }, { onConflict: 'server' });
+
+          if (error) throw error;
+
+          setServices(prev => {
+            const exists = prev.some(s => s.server === url);
+            if (exists) {
+              return prev.map(s => s.server === url ? { ...result, loading: false } : s);
+            }
+            return [{ ...result, loading: false }, ...prev];
+          });
+
           setDetectedResults(prev => {
             const next = prev.filter(r => r.server !== url);
             return [...next, result];
           });
 
         } catch (error) {
-          console.error(`Detection error: ${url}`, error);
-          const errorResult = {
-            server: url,
-            models: [],
-            tps: 0,
-            lastUpdate: new Date().toISOString(),
-            status: 'error' as const,
-            loading: false
-          };
-          setServices(prev => prev.map(s => s.server === url ? errorResult : s));
-          setDetectedResults(prev => [...prev, errorResult]);
+          console.error(`Detection/Upsert error: ${url}`, error);
+          await removeNode(url);
         } finally {
           setDetectingServices(prev => {
             const next = new Set(prev);
@@ -123,11 +163,12 @@ export default function Home() {
       }
       
       setCountdown(5);
+      fetchNodes(); // Refresh list after detection batch
     } catch (error) {
       console.error('Error during detection process:', error);
       setDetectingServices(new Set());
     }
-  }, [loadServersFromStorage, saveServersToStorage]);
+  }, [fetchNodes]);
 
   const handleAddServer = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,33 +184,13 @@ export default function Home() {
   };
 
   const handleBenchmark = async (url: string) => {
-    // Re-run detection for a specific server
     await handleDetect([url]);
-  };
-
-  const removeServer = (url: string) => {
-    const currentUrls = loadServersFromStorage();
-    const nextUrls = currentUrls.filter(u => u !== url);
-    saveServersToStorage(nextUrls);
-    setServices(prev => prev.filter(s => s.server !== url));
   };
 
   useEffect(() => {
     setIsClient(true);
-    const urls = loadServersFromStorage();
-    if (urls.length > 0) {
-      // Initialize state and start detection
-      setServices(urls.map(url => ({
-        server: url,
-        models: [],
-        tps: 0,
-        lastUpdate: new Date().toISOString(),
-        loading: true,
-        status: 'loading'
-      })));
-      handleDetect(urls);
-    }
-  }, [loadServersFromStorage, handleDetect]);
+    fetchNodes();
+  }, [fetchNodes]);
 
   // Update available models whenever services change
   useEffect(() => {
@@ -189,7 +210,6 @@ export default function Home() {
     }
   }, [countdown]);
 
-  // Sorting function
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -199,137 +219,59 @@ export default function Home() {
     }
   };
 
-  // Toggle model selection
   const toggleModelSelection = (model: string) => {
     setSelectedModels(prev => 
-      prev.includes(model)
-        ? prev.filter(m => m !== model)
-        : [...prev, model]
+      prev.includes(model) ? prev.filter(m => m !== model) : [...prev, model]
     );
   };
 
-  // Remove single selected model
-  const removeSelectedModel = (model: string) => {
-    setSelectedModels(prev => prev.filter(m => m !== model));
-  };
-
-  // Clear all selected models
   const clearSelectedModels = () => {
     setSelectedModels([]);
   };
 
-  // Filter and sort service list
-  const filteredAndSortedServices = services
-    .filter(service => 
-      // Filter out fake services
-      (!service.isFake) && 
-      (selectedModels.length === 0 || 
-      service.models.some(model => selectedModels.includes(model)))
-    )
-    .sort((a, b) => {
-      const multiplier = sortOrder === 'asc' ? 1 : -1;
-      
-      // Special handling for sorting only when models are selected
-      if (selectedModels.length > 0) {
-        // Check if service contains selected models
-        const aHasSelectedModel = a.models.some(model => selectedModels.includes(model));
-        const bHasSelectedModel = b.models.some(model => selectedModels.includes(model));
-        
-        // If a contains selected model but b doesn't, a comes first
-        if (aHasSelectedModel && !bHasSelectedModel) return -1;
-        // If b contains selected model but a doesn't, b comes first
-        if (!aHasSelectedModel && bHasSelectedModel) return 1;
-      }
-      
-      // Put loading services at the top
-      if (a.loading && !b.loading) return -1;
-      if (!a.loading && b.loading) return 1;
-      
-      if (sortField === 'tps') {
-        return (a.tps - b.tps) * multiplier;
-      } else {
-        return (new Date(a.lastUpdate).getTime() - new Date(b.lastUpdate).getTime()) * multiplier;
-      }
-    });
-
-  // Calculate pagination data
-  const paginatedServices = filteredAndSortedServices.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
+  // Filter services for UI (if selectedModels used)
+  const filteredServices = services.filter(service => 
+    (selectedModels.length === 0 || service.models.some(model => selectedModels.includes(model)))
   );
 
-  // Calculate total pages
-  const totalPages = Math.ceil(filteredAndSortedServices.length / pageSize);
-
-  // Page change handler
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Page size change handler
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-  };
-
-  // Reset page number when filter conditions change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedModels, sortField, sortOrder]);
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
-    <main className="min-h-screen py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-          <Header
-            countdown={countdown}
-            detectingServices={detectingServices}
-            detectedResults={detectedResults}
-            onDetect={handleDetect}
-          />
-          <div className="flex items-center space-x-3">
-            <a 
-              href="https://github.com/sapthesh/Ollama-Server" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-gray-300 hover:text-white transition-colors duration-200"
-              title="GitHub"
-            >
-              <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-              </svg>
-            </a>
-          </div>
-        </div>
+    <main className="min-h-screen bg-[#0f1117]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Header
+          countdown={countdown}
+          detectingServices={detectingServices}
+          detectedResults={detectedResults}
+          onDetect={handleDetect}
+          totalNodes={totalCount}
+          onlineNodes={services.filter(s => s.status === 'success' || s.status === 'fake').length}
+        />
 
-        {/* Discovery Input Field */}
-        <div className="mb-8">
-          <form onSubmit={handleAddServer} className="relative flex items-center max-w-2xl mx-auto group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <PlusIcon className="h-5 w-5 text-cyan-500 group-focus-within:text-cyan-400 transition-colors" />
-            </div>
+        {/* Discovery Input */}
+        <div className="my-8">
+          <form onSubmit={handleAddServer} className="relative flex items-center max-w-2xl group">
             <input
               type="text"
               value={newServerUrl}
               onChange={(e) => setNewServerUrl(e.target.value)}
-              placeholder="Add server IP (e.g., 192.168.1.10:11434)"
-              className="block w-full pl-12 pr-32 py-4 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md 
-                text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 
-                focus:border-cyan-500/50 transition-all duration-300"
+              placeholder="ENTER NODE IP (E.G. 1.2.3.4:11434)"
+              className="block w-full pl-6 pr-32 py-3 bg-zinc-900 border border-[#2d2d2d] rounded-sm 
+                text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-zinc-500 
+                transition-all text-xs font-bold uppercase tracking-widest"
             />
             <button
               type="submit"
-              className="absolute right-2 px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 
-                hover:to-blue-500 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-cyan-500/20 
-                transition-all duration-300"
+              className="absolute right-1 px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 
+                text-cyan-500 text-[10px] font-black uppercase tracking-widest rounded-sm border border-[#2d2d2d]
+                transition-all active:scale-95"
             >
-              Add Server
+              Add Node
             </button>
           </form>
         </div>
 
-        <div className="glass-card-dark rounded-2xl overflow-hidden mb-6">
+        <div className="border border-[#2d2d2d] rounded-sm overflow-hidden mb-6 bg-zinc-900/20">
           <ModelFilter
             selectedModels={selectedModels}
             availableModels={availableModels}
@@ -338,29 +280,26 @@ export default function Home() {
             sortOrder={sortOrder}
             onSearchChange={setSearchTerm}
             onToggleModel={toggleModelSelection}
-            onRemoveModel={removeSelectedModel}
+            onRemoveModel={(m) => setSelectedModels(prev => prev.filter(mod => mod !== m))}
             onClearModels={clearSelectedModels}
             onToggleSort={toggleSort}
+            statusFilter={statusFilter}
+            onStatusFilterChange={(s) => setStatusFilter(s)}
           />
 
           <ServiceList
-            services={paginatedServices}
+            services={filteredServices}
             currentPage={currentPage}
             pageSize={pageSize}
             totalPages={totalPages}
             isClient={isClient}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
+            onPageChange={(p) => setCurrentPage(p)}
+            onPageSizeChange={(s) => { setPageSize(s); setCurrentPage(1); }}
             onBenchmark={handleBenchmark}
-            onRemove={removeServer}
+            onRemove={removeNode}
           />
         </div>
         
-        <div className="text-sm text-gray-400 text-right">
-          {t('service.total', { count: filteredAndSortedServices.length })}
-          {selectedModels.length > 0 && t('service.filtered', { models: selectedModels.join(', ') })}
-        </div>
-
         <Footer />
       </div>
     </main>

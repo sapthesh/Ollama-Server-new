@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { ArrowUpIcon, ArrowDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowUpIcon, ArrowDownIcon, XMarkIcon, FunnelIcon } from '@heroicons/react/24/outline';
 
 interface ModelFilterProps {
   selectedModels: string[];
@@ -12,6 +12,8 @@ interface ModelFilterProps {
   onRemoveModel: (model: string) => void;
   onClearModels: () => void;
   onToggleSort: (field: 'tps' | 'lastUpdate') => void;
+  statusFilter: 'all' | 'online' | 'offline';
+  onStatusFilterChange: (status: 'all' | 'online' | 'offline') => void;
 }
 
 export function ModelFilter({
@@ -25,112 +27,124 @@ export function ModelFilter({
   onRemoveModel,
   onClearModels,
   onToggleSort,
+  statusFilter,
+  onStatusFilterChange,
 }: ModelFilterProps) {
-  const t = useTranslations();
+  const _t = useTranslations();
 
-  // Get filtered model list
   const filteredModels = availableModels.filter(model => 
     model.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sorting icon component
   const SortIcon = ({ field }: { field: 'tps' | 'lastUpdate' }) => {
     if (sortField !== field) return null;
     return sortOrder === 'asc' ? 
-      <ArrowUpIcon className="h-4 w-4 inline-block ml-1" /> :
-      <ArrowDownIcon className="h-4 w-4 inline-block ml-1" />;
+      <ArrowUpIcon className="h-3 w-3 inline-block ml-0.5" /> :
+      <ArrowDownIcon className="h-3 w-3 inline-block ml-0.5" />;
   };
 
   return (
-    <div className="p-8 border-b border-white/5 space-y-8 bg-white/5 backdrop-blur-md">
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold text-slate-100 tracking-tight">{t('filter.title')}</h2>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => onToggleSort('tps')}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border transition-all duration-300
-                ${sortField === 'tps' 
-                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' 
-                  : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
-            >
-              {t('filter.sort.tps')}
-              <SortIcon field="tps" />
-            </button>
-            <button
-              onClick={() => onToggleSort('lastUpdate')}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border transition-all duration-300
-                ${sortField === 'lastUpdate' 
-                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' 
-                  : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
-            >
-              {t('filter.sort.lastUpdate')}
-              <SortIcon field="lastUpdate" />
-            </button>
+    <div className="p-4 border-b border-[#2d2d2d] space-y-4 bg-zinc-900/50">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-2 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+            <FunnelIcon className="w-3.5 h-3.5" />
+            <span>Filter Nodes</span>
           </div>
-        </div>
-        
-        {/* Search input */}
-        <div className="relative group">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={t('filter.search')}
-            className="w-full px-5 py-3 bg-black/20 border border-white/10 rounded-2xl text-slate-200 
-              placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent
-              transition-all duration-300 group-hover:border-white/20"
-          />
-        </div>
-
-        {/* Selected models */}
-        {selectedModels.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('filter.selectedModels')}</span>
+          
+          {/* Status Filter Toggle */}
+          <div className="flex items-center border border-[#2d2d2d] rounded-sm overflow-hidden bg-black/40">
+            {(['all', 'online', 'offline'] as const).map((status) => (
               <button
-                onClick={onClearModels}
-                className="text-xs font-bold text-rose-400 hover:text-rose-300 uppercase tracking-widest transition-colors duration-200"
+                key={status}
+                onClick={() => onStatusFilterChange(status)}
+                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-colors
+                  ${statusFilter === status 
+                    ? 'bg-zinc-800 text-zinc-100' 
+                    : 'text-zinc-600 hover:text-zinc-400'}`}
               >
-                {t('filter.clearSelection')}
+                {status}
               </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {selectedModels.map(model => (
-                <span
-                  key={model}
-                  className="inline-flex items-center px-4 py-1.5 rounded-xl text-sm font-medium
-                    bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-sm"
-                >
-                  {model}
-                  <button
-                    onClick={() => onRemoveModel(model)}
-                    className="ml-2 text-cyan-400 hover:text-rose-400 transition-colors duration-200"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                </span>
-              ))}
-            </div>
+            ))}
           </div>
-        )}
-
-        {/* Model list */}
-        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
-          {filteredModels.map(model => (
-            <button
-              key={model}
-              onClick={() => onToggleModel(model)}
-              className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-all duration-300 border
-                ${selectedModels.includes(model)
-                  ? 'bg-cyan-500 text-white border-cyan-400 shadow-lg shadow-cyan-500/20'
-                  : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:border-white/10 hover:text-slate-200'
-                }`}
-            >
-              {model}
-            </button>
-          ))}
         </div>
+
+        <div className="flex items-center space-x-2">
+          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600">Sort By</span>
+          <button
+            onClick={() => onToggleSort('tps')}
+            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-sm border transition-all
+              ${sortField === 'tps' 
+                ? 'bg-zinc-800 text-cyan-500 border-zinc-700' 
+                : 'bg-black/20 text-zinc-500 border-[#2d2d2d] hover:text-zinc-300'}`}
+          >
+            TPS <SortIcon field="tps" />
+          </button>
+          <button
+            onClick={() => onToggleSort('lastUpdate')}
+            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-sm border transition-all
+              ${sortField === 'lastUpdate' 
+                ? 'bg-zinc-800 text-cyan-500 border-zinc-700' 
+                : 'bg-black/20 text-zinc-500 border-[#2d2d2d] hover:text-zinc-300'}`}
+          >
+            Last Seen <SortIcon field="lastUpdate" />
+          </button>
+        </div>
+      </div>
+      
+      {/* Search Input */}
+      <div className="relative group">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="SEARCH MODELS (E.G. LLAMA3, DEEPSEEK)..."
+          className="w-full px-3 py-2 bg-black/60 border border-[#2d2d2d] rounded-sm text-xs font-bold text-zinc-300 
+            placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-all uppercase tracking-widest"
+        />
+      </div>
+
+      {/* Selected Models Pill Row */}
+      {selectedModels.length > 0 && (
+        <div className="flex items-center justify-between py-1 bg-black/20 px-3 rounded-sm border border-[#2d2d2d]/50">
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {selectedModels.map(model => (
+              <span
+                key={model}
+                className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase
+                  bg-zinc-950 text-cyan-500 border border-cyan-500/10"
+              >
+                {model}
+                <button onClick={() => onRemoveModel(model)} className="ml-1.5 text-zinc-600 hover:text-rose-500">
+                  <XMarkIcon className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={onClearModels}
+            className="text-[9px] font-black text-rose-500/70 hover:text-rose-500 uppercase tracking-widest pl-4"
+          >
+            Reset All
+          </button>
+        </div>
+      )}
+
+      {/* Quick Model Picker */}
+      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar pr-2 pt-1">
+        {filteredModels.map(model => (
+          <button
+            key={model}
+            onClick={() => onToggleModel(model)}
+            className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-tighter transition-all border
+              ${selectedModels.includes(model)
+                ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30'
+                : 'bg-black/20 text-zinc-600 border-transparent hover:border-zinc-800 hover:text-zinc-400'
+              }`}
+          >
+            {model}
+          </button>
+        ))}
       </div>
     </div>
   );

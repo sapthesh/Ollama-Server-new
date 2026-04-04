@@ -1,6 +1,12 @@
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { 
+  MagnifyingGlassIcon, 
+  ArrowDownTrayIcon,
+  CircleStackIcon,
+  ShieldCheckIcon,
+  XCircleIcon
+} from '@heroicons/react/24/outline';
 import { Modal } from './Modal';
 import { OllamaService } from '@/types';
 
@@ -9,9 +15,18 @@ interface HeaderProps {
   detectingServices: Set<string>;
   detectedResults: OllamaService[];
   onDetect: (urls: string[]) => Promise<void>;
+  totalNodes: number;
+  onlineNodes: number;
 }
 
-export function Header({ countdown, detectingServices, detectedResults, onDetect }: HeaderProps) {
+export function Header({ 
+  countdown, 
+  detectingServices, 
+  detectedResults, 
+  onDetect,
+  totalNodes,
+  onlineNodes
+}: HeaderProps) {
   const t = useTranslations();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [urlInput, setUrlInput] = useState('');
@@ -24,18 +39,15 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
     
     setIsDetecting(true);
     try {
-      // Filter out new service addresses
       const existingUrls = new Set(detectResults.map(result => result.server));
       const newUrls = urls.filter(url => !existingUrls.has(url));
       
-      // Update status of existing services to loading
       setDetectResults(prev => prev.map(result => 
         urls.includes(result.server) 
           ? { ...result, loading: true, status: 'loading' as const }
           : result
       ));
 
-      // Add new services
       if (newUrls.length > 0) {
         const initialServices = newUrls.map(url => ({
           server: url,
@@ -48,23 +60,19 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
         setDetectResults(prev => [...prev, ...initialServices]);
       }
       
-      // Start detection - Parent will handle saving to LocalStorage
       await onDetect(urls);
     } finally {
       setIsDetecting(false);
     }
   };
 
-  // Update status of detection results
   useEffect(() => {
     setDetectResults(prev => 
       prev.map(result => {
         const isDetecting = detectingServices.has(result.server);
-        // Find latest detection result
         const latestResult = detectedResults.find(r => r.server === result.server);
         
         if (latestResult && !isDetecting) {
-          // If there is a latest result and not currently detecting, use the latest result
           return {
             ...latestResult,
             loading: false,
@@ -81,7 +89,6 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
     );
   }, [detectingServices, detectedResults]);
 
-  // Clear records of updated servers when resetting detection
   const handleNewDetection = () => {
     setDetectResults([]);
     setUrlInput('');
@@ -92,7 +99,7 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ollama-detection-${new Date().toISOString()}.json`;
+    a.download = `ollama-nodes-${new Date().toISOString()}.json`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -100,156 +107,139 @@ export function Header({ countdown, detectingServices, detectedResults, onDetect
   };
 
   return (
-    <div className="flex-1">
-      <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
-        {t('title')}
-      </h1>
-      <button
-        onClick={() => {
-          setIsModalOpen(true);
-          setDetectResults([]);
-          setUrlInput('');
-        }}
-        disabled={isDetecting || countdown > 0}
-        className={`mt-6 inline-flex items-center px-6 py-3 rounded-xl shadow-lg text-sm font-semibold
-          transition-all duration-300 ease-in-out glass-button
-          ${isDetecting || countdown > 0 
-            ? 'opacity-50 cursor-not-allowed' 
-            : 'hover:scale-105 active:scale-95 text-cyan-400 hover:text-cyan-300'
-          }`}
-      >
-        <MagnifyingGlassIcon className={`-ml-1 mr-2 h-5 w-5 ${isDetecting ? 'animate-spin' : ''}`} />
-        {isDetecting ? t('header.detecting') :
-         countdown > 0 ? t('header.detectCountdown', { countdown }) : t('header.detect')}
-      </button>
+    <div className="w-full space-y-6">
+      {/* Global Stats Bar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border border-[#2d2d2d] rounded text-[10px] font-black uppercase tracking-widest text-zinc-500">
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-2">
+            <CircleStackIcon className="w-3 h-3 text-zinc-600" />
+            <span>Total Nodes: <span className="text-zinc-200">{totalNodes}</span></span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <ShieldCheckIcon className="w-3 h-3 text-emerald-500/50" />
+            <span>Online: <span className="text-emerald-500">{onlineNodes}</span></span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <XCircleIcon className="w-3 h-3 text-rose-500/50" />
+            <span>Pruned/Offline: <span className="text-rose-500">{totalNodes - onlineNodes}</span></span>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2 opacity-50">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+          <span>Systems Nominal</span>
+        </div>
+      </div>
+
+      <div className="flex items-end justify-between border-b border-[#2d2d2d] pb-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-black text-white tracking-widest uppercase">
+            {t('title')}
+          </h1>
+          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest opacity-80">
+            Automated Ollama Node Monitoring & Discovery
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            setIsModalOpen(true);
+            setDetectResults([]);
+            setUrlInput('');
+          }}
+          disabled={isDetecting || countdown > 0}
+          className={`flex items-center px-4 py-2 border border-[#2d2d2d] bg-zinc-900 text-[10px] font-black uppercase tracking-widest
+            transition-colors duration-200
+            ${isDetecting || countdown > 0 
+              ? 'opacity-30 cursor-not-allowed' 
+              : 'hover:bg-zinc-800 text-cyan-500 hover:text-cyan-400'
+            }`}
+        >
+          <MagnifyingGlassIcon className={`mr-2 h-3.5 w-3.5 ${isDetecting ? 'animate-spin' : ''}`} />
+          {isDetecting ? 'Scanning' :
+           countdown > 0 ? `Reset in ${countdown}s` : 'Scan Nodes'}
+        </button>
+      </div>
 
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={t('detect.title')}
+        title="Node Discovery Scan"
       >
-        <div className="space-y-6">
+        <div className="space-y-4">
           {detectResults.length === 0 ? (
             <>
-              <p className="text-sm text-slate-400">
-                {t('detect.description')}
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-80 mb-2">
+                Enter Ollama Node Addresses (One Per Line)
               </p>
               <textarea
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder={t('detect.placeholder')}
-                className="w-full h-48 px-4 py-3 text-sm bg-black/40 border border-white/10 rounded-xl 
-                  text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 
-                  focus:border-cyan-500/50 resize-none font-mono transition-all duration-300"
+                placeholder="http://192.168.1.10:11434"
+                className="w-full h-40 px-3 py-2 text-xs bg-black border border-[#2d2d2d] rounded-sm 
+                  text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-cyan-500/50 
+                  resize-none font-mono"
               />
-              <div className="flex justify-end space-x-4">
+              <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white
-                    transition-all duration-200"
+                  className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-400"
                 >
-                  {t('detect.cancel')}
+                  Cancel
                 </button>
                 <button
                   onClick={handleDetect}
                   disabled={!urlInput.trim() || isDetecting || countdown > 0}
-                  className={`px-6 py-2.5 rounded-xl text-sm font-semibold shadow-lg transition-all duration-300
+                  className={`px-6 py-2 border text-[10px] font-black uppercase tracking-widest shadow-sm
                     ${!urlInput.trim() || isDetecting || countdown > 0
-                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white hover:shadow-cyan-500/20'
+                      ? 'border-zinc-800 bg-zinc-950 text-zinc-700 cursor-not-allowed'
+                      : 'border-cyan-500/50 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 active:scale-95'
                     }`}
                 >
-                  {isDetecting ? t('header.detecting') : 
-                   countdown > 0 ? t('header.detectCountdown', { countdown }) : 
-                   t('detect.confirm')}
+                  Confirm Scan
                 </button>
               </div>
             </>
           ) : (
             <>
-              <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-4 pr-2">
+              <div className="max-h-[50vh] overflow-y-auto custom-scrollbar space-y-2 pr-2">
                 {detectResults.map((result) => (
-                  <div key={result.server} className={`p-5 glass-card rounded-2xl ${result.loading ? 'animate-pulse' : ''}`}>
+                  <div key={result.server} className={`px-4 py-3 bg-zinc-900 border border-[#2d2d2d] rounded-sm ${result.loading ? 'animate-pulse' : ''}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <a
-                          href={result.server}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-cyan-400 font-medium hover:text-cyan-300 transition-colors duration-200"
-                        >
-                          {result.server}
-                        </a>
+                        <span className="text-xs font-bold text-zinc-200">{result.server}</span>
                         {result.status === 'error' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                            {t('detect.error')}
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                            Failed
                           </span>
                         )}
                         {result.status === 'success' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            {t('detect.success')}
-                          </span>
-                        )}
-                        {result.status === 'fake' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            {t('detect.fake')}
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                            Live
                           </span>
                         )}
                       </div>
-                      <span className="text-sm font-mono text-slate-400">
-                        {result.loading ? (
-                          <div className="h-4 bg-slate-700/50 rounded animate-pulse w-16"></div>
-                        ) : result.status === 'error' ? (
-                          <span className="text-rose-400">-</span>
-                        ) : (
-                          t('service.tps', { value: result.tps.toFixed(2) })
-                        )}
+                      <span className="text-[10px] font-mono text-zinc-500 font-bold">
+                        {result.loading ? '...' : result.status === 'error' ? '0.00 TPS' : `${result.tps.toFixed(2)} TPS`}
                       </span>
-                    </div>
-                    <div className="mt-4">
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('service.availableModels')}</span>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {result.loading ? (
-                          <div className="h-6 bg-slate-700/50 rounded animate-pulse w-24"></div>
-                        ) : result.status === 'error' ? (
-                          <span className="text-rose-400/70 text-sm">{t('detect.unavailable')}</span>
-                        ) : (
-                          result.models.map((model, _idx) => (
-                            <span
-                              key={_idx}
-                              className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium
-                                bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                            >
-                              {model}
-                            </span>
-                          ))
-                        )}
-                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="flex justify-end space-x-4 pt-6 border-t border-white/5">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-[#2d2d2d]">
                 <button
                   onClick={handleNewDetection}
                   disabled={countdown > 0}
-                  className={`px-5 py-2.5 text-sm font-medium transition-all duration-200
-                    ${countdown > 0
-                      ? 'text-slate-600 cursor-not-allowed'
-                      : 'text-slate-400 hover:text-white'
-                    }`}
+                  className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest
+                    ${countdown > 0 ? 'text-zinc-800' : 'text-zinc-600 hover:text-zinc-400'}`}
                 >
-                  {countdown > 0 
-                    ? t('header.detectCountdown', { countdown })
-                    : t('detect.newDetection')}
+                  New Scan
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="inline-flex items-center px-6 py-2.5 rounded-xl text-sm font-semibold
-                    bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all duration-300"
+                  className="inline-flex items-center px-6 py-2 bg-zinc-900 border border-[#2d2d2d] text-[10px] font-black uppercase tracking-widest text-zinc-300 hover:bg-zinc-800"
                 >
-                  <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-                  {t('detect.download')}
+                  <ArrowDownTrayIcon className="h-3.5 w-3.5 mr-2" />
+                  Save Export
                 </button>
               </div>
             </>
