@@ -16,6 +16,7 @@ export async function verifyAdmin(password: string) {
 /**
  * Bulk Ingest IPs
  * Deduplicates, formats, and pushes to upload_queue.
+ * Optimized for chunked ingestion with detailed error reporting.
  */
 export async function bulkIngestIPs(rawList: string) {
   if (!adminSupabase) return { success: false, error: 'Database not initialized' };
@@ -37,16 +38,23 @@ export async function bulkIngestIPs(rawList: string) {
 
     if (formatted.length === 0) return { success: false, error: 'No valid IPs found' };
 
+    // Use ignoreDuplicates: true to prevent ingest failure on existing records
     const { error } = await adminSupabase
       .from('upload_queue')
-      .upsert(formatted, { onConflict: 'raw_ip' });
+      .upsert(formatted, { 
+        onConflict: 'raw_ip',
+        ignoreDuplicates: true 
+      });
 
-    if (error) throw error;
+    if (error) {
+       console.error('Supabase Ingest Error:', error);
+       throw error;
+    }
     
     return { success: true, count: formatted.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: message };
+    return { success: false, error: `INGEST_FAILED: ${message}` };
   }
 }
 

@@ -4,7 +4,11 @@ import type { NextConfig } from "next";
 const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb'
+    }
+  }
 };
 
 export default withNextIntl(nextConfig);

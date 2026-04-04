@@ -34,6 +34,7 @@ export function AdminPortalClient() {
   const [queueCount, setQueueCount] = useState<number>(0);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number, total: number } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [actions, setActions] = useState<AdminActions | null>(null);
   const [bulkList, setBulkList] = useState('');
@@ -64,19 +65,49 @@ export function AdminPortalClient() {
     }
   };
 
+  /**
+   * Helper to chunk the IP list for sequential ingestion
+   */
+  const chunkList = (list: string[], size: number) => {
+    const chunks = [];
+    for (let i = 0; i < list.length; i += size) {
+      chunks.push(list.slice(i, i + size));
+    }
+    return chunks;
+  };
+
   const handleBulkUpload = async () => {
     if (!bulkList.trim() || !actions) return;
     setLoading(true);
-    const res = await actions.bulkIngestIPs(bulkList);
-    if (res.success) {
+    setStatus(null);
+
+    const lines = bulkList.split('\n').map(l => l.trim()).filter(Boolean);
+    const chunks = chunkList(lines, 500); // 500 IPs per chunk
+    setUploadProgress({ current: 0, total: chunks.length });
+
+    let successCount = 0;
+    try {
+      for (let i = 0; i < chunks.length; i++) {
+        setUploadProgress({ current: i + 1, total: chunks.length });
+        const res = await actions.bulkIngestIPs(chunks[i].join('\n'));
+        
+        if (!res.success) {
+          throw new Error(res.error || 'CHUNK_UPLOAD_FAILED');
+        }
+        successCount += (res.count || 0);
+      }
+
       setBulkList('');
-      setStatus({ type: 'success', message: `QUEUED ${res.count} NODES FOR PROCESSING` });
-      // Trigger worker
+      setStatus({ type: 'success', message: `QUEUED ${successCount} NODES ACROSS ${chunks.length} CHUNKS` });
+      // Trigger background worker
       fetch('/api/worker/process-queue', { method: 'POST' }).catch(console.error);
-    } else {
-      setStatus({ type: 'error', message: `INGEST FAILED: ${res.error}` });
+    } catch (err) {
+      console.error('Bulk Upload Failed:', err);
+      setStatus({ type: 'error', message: `INGEST FAILED: ${err instanceof Error ? err.message : 'Unknown error'}` });
+    } finally {
+      setLoading(false);
+      setUploadProgress(null);
     }
-    setLoading(false);
   };
 
   const handlePurge = async () => {
@@ -201,7 +232,7 @@ export function AdminPortalClient() {
         <div className="p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 space-y-6">
           <div className="flex items-center space-x-3">
             <CloudArrowUpIcon className="w-5 h-5 text-black/40 dark:text-white/20" />
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Bulk IP Ingestion</h2>
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Bulk IP Ingestion (Chunked)</h2>
           </div>
           <textarea
             value={bulkList}
@@ -213,12 +244,26 @@ export function AdminPortalClient() {
           <button 
             onClick={handleBulkUpload}
             disabled={loading || !bulkList.trim()}
-            className="w-full py-4 bg-black dark:bg-white text-white dark:text-black text-[11px] font-black uppercase tracking-[0.3em] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-30"
+            className="w-full py-4 bg-black dark:bg-white text-white dark:text-black text-[11px] font-black uppercase tracking-[0.3em] hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-30 relative overflow-hidden"
           >
-            {loading ? 'Processing List...' : 'Initiate Background Scan & Deduplicate'}
+            {loading ? (
+               <span className="relative z-10">
+                 {uploadProgress 
+                   ? `Uploading Chunk ${uploadProgress.current}/${uploadProgress.total}...` 
+                   : 'Processing Ingest...'}
+               </span>
+            ) : (
+              'Initiate Background Scan & Deduplicate'
+            )}
+            {loading && uploadProgress && (
+              <div 
+                className="absolute inset-0 bg-emerald-500/10 transition-all duration-300 origin-left"
+                style={{ transform: `scaleX(${uploadProgress.current / uploadProgress.total})` }}
+              />
+            )}
           </button>
           <p className="text-[9px] text-black/40 dark:text-white/10 uppercase italic">
-            Automated formatting enabled: IPs without protocol/port will be converted to http://[IP]:11434.
+            Automatic chunking enabled (500 IPs/sequenced batch). 10MB payload overhead active.
           </p>
         </div>
 
