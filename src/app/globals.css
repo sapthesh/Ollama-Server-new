@@ -4,19 +4,19 @@
 
 @layer base {
   :root {
-    --background: #f9fafb;
-    --foreground: #374151;
-    --border: #e5e7eb;
+    --background: #ffffff;
+    --foreground: #000000;
+    --border: #e2e8f0;
     --card: #ffffff;
-    --muted: #9ca3af;
+    --muted: #64748b;
   }
 
   .dark {
-    --background: #0f1117;
+    --background: #000000;
     --foreground: #f8fafc;
-    --border: #2d2d2d;
-    --card: #161922;
-    --muted: #64748b;
+    --border: #1a1a1a;
+    --card: #000000;
+    --muted: #334155;
   }
 
   body {
@@ -24,79 +24,71 @@
     background: var(--background);
     font-family: var(--font-geist-sans), sans-serif;
     -webkit-font-smoothing: antialiased;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 2px;
+    height: 2px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.02);
-  }
-
-  .dark .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.02);
+    background: transparent;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 2px;
-  }
-
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--border);
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.2);
-  }
-
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--muted);
   }
 }
 
-/* Utility classes for minimalist UI */
+/* 100% Flat Stealth Design */
 .border-thin {
   border: 1px solid var(--border);
 }
 
 .bg-table-header {
-  background-color: rgba(0, 0, 0, 0.02);
-}
-
-.dark .bg-table-header {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--background);
+  border-bottom: 1px solid var(--border);
 }
 
 .row-hover:hover {
-  background-color: rgba(0, 0, 0, 0.01);
-}
-
-.dark .row-hover:hover {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(128, 128, 128, 0.05);
 }
 
 .pill-gray {
-  @apply px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200;
-}
-
-.dark .pill-gray {
-  @apply bg-zinc-800 text-zinc-400 border-zinc-700/50;
+  @apply px-2 py-0.5 rounded-none text-[10px] font-bold bg-transparent text-muted border border-border;
 }
 
 .btn-minimal {
-  @apply p-1.5 rounded border border-transparent text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-all;
-}
-
-.dark .btn-minimal {
-  @apply text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50;
+  @apply p-1.5 rounded-none border border-transparent text-muted hover:text-foreground hover:border-border transition-all;
 }
 
 .status-indicator {
   @apply w-1.5 h-1.5 rounded-full;
+}
+
+/* Remove all blurs/shadows */
+* {
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.animate-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.status-monitor-log {
+  @apply font-mono text-[11px] leading-tight;
 }

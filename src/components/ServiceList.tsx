@@ -10,6 +10,7 @@ import {
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { Disclosure, Transition } from '@headlessui/react';
+import React from 'react';
 
 interface ServiceListProps {
   services: OllamaService[];
@@ -53,68 +54,71 @@ export function ServiceList({
   };
 
   return (
-    <div className="bg-[#161922] border-t border-[#2d2d2d] overflow-hidden">
+    <div className="bg-background border-t border-border overflow-hidden transition-colors">
       <div className="overflow-x-auto custom-scrollbar">
-        <table className="min-w-full divide-y divide-[#2d2d2d]">
+        <table className="min-w-full divide-y divide-border">
           <thead>
-            <tr className="bg-zinc-900/50">
-              <th scope="col" className="px-4 py-3 text-left text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                Server Node
+            <tr className="bg-background">
+              <th scope="col" className="px-4 py-3 text-left text-[10px] font-black text-muted uppercase tracking-[0.2em] border-r border-border">
+                Node.Identity
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+              <th scope="col" className="px-4 py-3 text-left text-[10px] font-black text-muted uppercase tracking-[0.2em] border-r border-border">
                 Status
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                Perf
+              <th scope="col" className="px-4 py-3 text-left text-[10px] font-black text-muted uppercase tracking-[0.2em] border-r border-border">
+                Perf.Metrics
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                Metadata
+              <th scope="col" className="px-4 py-3 text-left text-[10px] font-black text-muted uppercase tracking-[0.2em] border-r border-border">
+                Fleet.Metadata
               </th>
-              <th scope="col" className="px-4 py-3 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                Actions
+              <th scope="col" className="px-4 py-3 text-right text-[10px] font-black text-muted uppercase tracking-[0.2em]">
+                System.Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#2d2d2d]">
+          <tbody className="divide-y divide-border">
             {services.map((service, _index) => (
               <Disclosure key={service.server} as={React.Fragment}>
                 {({ open }) => (
                   <>
-                    <tr className="row-hover group cursor-pointer transition-colors" onClick={() => !service.loading && service.status !== 'error'}>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                    <tr 
+                      className="row-hover group cursor-pointer transition-colors" 
+                      onClick={() => !service.loading && service.status !== 'error'}
+                    >
+                      <td className="px-4 py-3 whitespace-nowrap border-r border-border">
                         <div className="flex items-center space-x-3">
                           <Disclosure.Button 
                             disabled={service.loading || service.status === 'error'}
-                            className="btn-minimal"
+                            className={`btn-minimal ${open ? 'rotate-180 text-foreground border-border' : ''}`}
                           >
-                            <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180 text-cyan-400' : ''}`} />
+                            <ChevronDownIcon className="w-3.5 h-3.5 transition-transform duration-200" />
                           </Disclosure.Button>
-                          <span className="text-sm font-bold text-slate-200 tracking-tight">
+                          <span className="text-[11px] font-black text-foreground tracking-widest uppercase">
                             {service.server.replace('http://', '').replace('https://', '')}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap border-r border-border">
                         <div className="flex items-center space-x-2">
-                          <div className={`status-indicator ${
+                          <div className={`status-indicator rounded-none ${
                             service.status === 'error' ? 'bg-rose-500' : 
                             service.loading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
                           }`} />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-muted">
                             {service.loading ? 'Syncing' : service.status || 'Active'}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs font-mono font-bold text-zinc-300">
-                        {service.tps.toFixed(2)} <span className="text-[9px] text-zinc-600">TPS</span>
+                      <td className="px-4 py-3 whitespace-nowrap text-[10px] font-mono font-black text-foreground border-r border-border">
+                        {service.tps.toFixed(2)} <span className="text-[8px] text-muted opacity-50 uppercase">TPS</span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap border-r border-border">
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">
-                            {service.models.length} Model{service.models.length !== 1 ? 's' : ''}
+                          <span className="text-[9px] font-black text-muted uppercase tracking-tighter">
+                            {service.models.length} Units.Loaded
                           </span>
                           {isClient && (
-                            <span className="text-[9px] text-zinc-600 uppercase">
+                            <span className="text-[8px] text-muted/50 uppercase font-mono">
                               {formatDistanceToNow(new Date(service.lastUpdate), { addSuffix: true, locale: enUS })}
                             </span>
                           )}
@@ -125,24 +129,24 @@ export function ServiceList({
                           <button
                             onClick={(e) => handleCopyUrl(e, service.server)}
                             className="btn-minimal"
-                            title="Copy URL"
+                            title="Copy Handle"
                           >
-                            <Square2StackIcon className="w-4 h-4" />
+                            <Square2StackIcon className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={(e) => handleAction(e, () => onBenchmark(service.server))}
                             disabled={service.loading}
-                            className={`btn-minimal ${service.loading ? 'animate-spin opacity-50' : ''}`}
-                            title="Retry Check"
+                            className={`btn-minimal ${service.loading ? 'animate-spin' : ''}`}
+                            title="Sync Node"
                           >
-                            <ArrowPathIcon className="w-4 h-4" />
+                            <ArrowPathIcon className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            className="btn-minimal hover:text-rose-500"
+                            className="btn-minimal hover:text-rose-500 hover:border-rose-500/20"
                             onClick={(e) => handleAction(e, () => onRemove(service.server))}
-                            title="Delete Node"
+                            title="Purge Node"
                           >
-                            <TrashIcon className="w-4 h-4" />
+                            <TrashIcon className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -157,11 +161,11 @@ export function ServiceList({
                       leaveFrom="transform opacity-100 translate-y-0"
                       leaveTo="transform opacity-0 -translate-y-1"
                     >
-                      <tr className="bg-zinc-900/30">
-                        <td colSpan={5} className="px-12 py-4 border-l-2 border-cyan-500/30">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                            {service.models.map((model, _mIdx) => (
-                              <span key={_mIdx} className="pill-gray truncate text-center" title={model}>
+                      <tr className="bg-muted/5">
+                        <td colSpan={5} className="px-12 py-6 border-b border-border">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 font-mono">
+                            {service.models.map((model, mIdx) => (
+                              <span key={mIdx} className="pill-gray truncate text-center text-[9px]" title={model}>
                                 {model}
                               </span>
                             ))}
@@ -173,38 +177,58 @@ export function ServiceList({
                 )}
               </Disclosure>
             ))}
+            {services.length === 0 && !isClient && (
+              <tr>
+                <td colSpan={5} className="py-20 text-center">
+                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.4em] animate-pulse">Initializing.System...</span>
+                </td>
+              </tr>
+            )}
+            {services.length === 0 && isClient && (
+              <tr>
+                <td colSpan={5} className="py-20 text-center">
+                  <div className="flex flex-col items-center space-y-2 opacity-20">
+                    <TrashIcon className="w-8 h-8" />
+                    <span className="text-[10px] font-black text-muted uppercase tracking-[0.4em]">Fleet.Empty</span>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Compact Pagination */}
-      <div className="px-4 py-3 border-t border-[#2d2d2d] flex items-center justify-between text-zinc-600 bg-zinc-900/30">
-        <div className="flex items-center space-x-4">
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer hover:text-zinc-400 transition-colors"
-          >
-            {PAGE_SIZE_OPTIONS.map(size => (
-              <option key={size} value={size} className="bg-zinc-900">{size} Per Page</option>
-            ))}
-          </select>
-          <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-            {currentPage} of {totalPages}
+      {/* Stealth Pagination */}
+      <div className="px-4 py-4 border-t border-border flex items-center justify-between text-muted bg-background">
+        <div className="flex items-center space-x-6">
+          <div className="relative group">
+            <select
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              className="bg-transparent border-none text-[9px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer 
+                hover:text-foreground transition-colors appearance-none pr-4"
+            >
+              {PAGE_SIZE_OPTIONS.map(size => (
+                <option key={size} value={size} className="bg-background">{size} per_step</option>
+              ))}
+            </select>
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">
+            {currentPage} . {totalPages}
           </span>
         </div>
-        <div className="flex space-x-1">
+        <div className="flex space-x-2">
           <button 
             disabled={currentPage === 1}
             onClick={() => onPageChange(currentPage - 1)}
-            className="btn-minimal disabled:opacity-20"
+            className="px-4 py-1.5 border border-border text-[9px] font-black uppercase tracking-widest hover:bg-foreground hover:text-background disabled:opacity-10 disabled:cursor-not-allowed transition-all"
           >
-            Prev
+            Previous
           </button>
           <button 
             disabled={currentPage === totalPages}
             onClick={() => onPageChange(currentPage + 1)}
-            className="btn-minimal disabled:opacity-20"
+            className="px-4 py-1.5 border border-border text-[9px] font-black uppercase tracking-widest hover:bg-foreground hover:text-background disabled:opacity-10 disabled:cursor-not-allowed transition-all"
           >
             Next
           </button>
@@ -213,5 +237,3 @@ export function ServiceList({
     </div>
   );
 }
-
-import React from 'react';
