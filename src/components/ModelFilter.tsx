@@ -39,29 +39,29 @@ export function ModelFilter({
   const SortIcon = ({ field }: { field: 'tps' | 'lastUpdate' }) => {
     if (sortField !== field) return null;
     return sortOrder === 'asc' ? 
-      <ArrowUpIcon className="h-3 w-3 inline-block ml-0.5" /> :
-      <ArrowDownIcon className="h-3 w-3 inline-block ml-0.5" />;
+      <ArrowUpIcon className="h-2.5 w-2.5 inline-block ml-1" /> :
+      <ArrowDownIcon className="h-2.5 w-2.5 inline-block ml-1" />;
   };
 
   return (
-    <div className="p-4 border-b border-[#2d2d2d] space-y-4 bg-zinc-900/50">
+    <div className="p-4 border-b border-border space-y-4 bg-background transition-colors">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-2 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+          <div className="flex items-center space-x-2 text-[10px] font-black text-muted uppercase tracking-[0.2em]">
             <FunnelIcon className="w-3.5 h-3.5" />
-            <span>Filter Nodes</span>
+            <span>Target.Filter</span>
           </div>
           
-          {/* Status Filter Toggle */}
-          <div className="flex items-center border border-[#2d2d2d] rounded-sm overflow-hidden bg-black/40">
+          {/* Flat Status Filter Toggle */}
+          <div className="flex items-center border border-border bg-background">
             {(['all', 'online', 'offline'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => onStatusFilterChange(status)}
-                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-colors
+                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all
                   ${statusFilter === status 
-                    ? 'bg-zinc-800 text-zinc-100' 
-                    : 'text-zinc-600 hover:text-zinc-400'}`}
+                    ? 'bg-foreground text-background' 
+                    : 'text-muted hover:text-foreground'}`}
               >
                 {status}
               </button>
@@ -70,52 +70,52 @@ export function ModelFilter({
         </div>
 
         <div className="flex items-center space-x-2">
-          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600">Sort By</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-muted">Sort.Priority</span>
           <button
             onClick={() => onToggleSort('tps')}
-            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-sm border transition-all
+            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest border transition-all
               ${sortField === 'tps' 
-                ? 'bg-zinc-800 text-cyan-500 border-zinc-700' 
-                : 'bg-black/20 text-zinc-500 border-[#2d2d2d] hover:text-zinc-300'}`}
+                ? 'bg-foreground text-background border-foreground' 
+                : 'bg-transparent text-muted border-border hover:border-muted'}`}
           >
             TPS <SortIcon field="tps" />
           </button>
           <button
             onClick={() => onToggleSort('lastUpdate')}
-            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-sm border transition-all
+            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest border transition-all
               ${sortField === 'lastUpdate' 
-                ? 'bg-zinc-800 text-cyan-500 border-zinc-700' 
-                : 'bg-black/20 text-zinc-500 border-[#2d2d2d] hover:text-zinc-300'}`}
+                ? 'bg-foreground text-background border-foreground' 
+                : 'bg-transparent text-muted border-border hover:border-muted'}`}
           >
-            Last Seen <SortIcon field="lastUpdate" />
+            Seen <SortIcon field="lastUpdate" />
           </button>
         </div>
       </div>
       
       {/* Search Input */}
-      <div className="relative group">
+      <div className="relative">
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="SEARCH MODELS (E.G. LLAMA3, DEEPSEEK)..."
-          className="w-full px-3 py-2 bg-black/60 border border-[#2d2d2d] rounded-sm text-xs font-bold text-zinc-300 
-            placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-all uppercase tracking-widest"
+          placeholder="SEARCH.MODELS: LLAMA3, DEEPSEEK, PHI3..."
+          className="w-full px-3 py-2 bg-background border border-border text-xs font-bold text-foreground 
+            placeholder-muted focus:outline-none focus:border-foreground transition-all uppercase tracking-widest"
         />
       </div>
 
       {/* Selected Models Pill Row */}
       {selectedModels.length > 0 && (
-        <div className="flex items-center justify-between py-1 bg-black/20 px-3 rounded-sm border border-[#2d2d2d]/50">
+        <div className="flex items-center justify-between py-2 bg-muted/5 px-3 border border-border">
           <div className="flex flex-wrap gap-1.5 items-center">
             {selectedModels.map(model => (
               <span
                 key={model}
-                className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase
-                  bg-zinc-950 text-cyan-500 border border-cyan-500/10"
+                className="inline-flex items-center px-2 py-0.5 text-[9px] font-black uppercase
+                  bg-foreground text-background border border-foreground"
               >
                 {model}
-                <button onClick={() => onRemoveModel(model)} className="ml-1.5 text-zinc-600 hover:text-rose-500">
+                <button onClick={() => onRemoveModel(model)} className="ml-2 hover:opacity-50">
                   <XMarkIcon className="h-3 w-3" />
                 </button>
               </span>
@@ -123,23 +123,23 @@ export function ModelFilter({
           </div>
           <button
             onClick={onClearModels}
-            className="text-[9px] font-black text-rose-500/70 hover:text-rose-500 uppercase tracking-widest pl-4"
+            className="text-[9px] font-black text-rose-500 hover:underline uppercase tracking-widest pl-4"
           >
-            Reset All
+            Reset
           </button>
         </div>
       )}
 
       {/* Quick Model Picker */}
-      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar pr-2 pt-1">
+      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar pr-2 pt-1 font-mono">
         {filteredModels.map(model => (
           <button
             key={model}
             onClick={() => onToggleModel(model)}
-            className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-tighter transition-all border
+            className={`px-2 py-1 text-[9px] font-black uppercase tracking-tighter transition-all border
               ${selectedModels.includes(model)
-                ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30'
-                : 'bg-black/20 text-zinc-600 border-transparent hover:border-zinc-800 hover:text-zinc-400'
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-transparent text-muted border-border hover:border-muted hover:text-foreground'
               }`}
           >
             {model}
