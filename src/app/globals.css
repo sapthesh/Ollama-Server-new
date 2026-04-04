@@ -4,6 +4,14 @@
 
 @layer base {
   :root {
+    --background: #f9fafb;
+    --foreground: #374151;
+    --border: #e5e7eb;
+    --card: #ffffff;
+    --muted: #9ca3af;
+  }
+
+  .dark {
     --background: #0f1117;
     --foreground: #f8fafc;
     --border: #2d2d2d;
@@ -16,6 +24,7 @@
     background: var(--background);
     font-family: var(--font-geist-sans), sans-serif;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -26,15 +35,27 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  .dark .custom-scrollbar::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.02);
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 2px;
   }
 
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
   }
 }
@@ -45,19 +66,35 @@
 }
 
 .bg-table-header {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark .bg-table-header {
   background-color: rgba(255, 255, 255, 0.02);
 }
 
 .row-hover:hover {
+  background-color: rgba(0, 0, 0, 0.01);
+}
+
+.dark .row-hover:hover {
   background-color: rgba(255, 255, 255, 0.03);
 }
 
 .pill-gray {
-  @apply px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700/50;
+  @apply px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200;
+}
+
+.dark .pill-gray {
+  @apply bg-zinc-800 text-zinc-400 border-zinc-700/50;
 }
 
 .btn-minimal {
-  @apply p-1.5 rounded border border-transparent text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-all;
+  @apply p-1.5 rounded border border-transparent text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-all;
+}
+
+.dark .btn-minimal {
+  @apply text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50;
 }
 
 .status-indicator {
