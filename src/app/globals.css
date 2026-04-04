@@ -4,62 +4,62 @@
 
 @layer base {
   :root {
-    --background: #0f172a;
-    --foreground: #e2e8f0;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: #020617;
-      --foreground: #f8fafc;
-    }
+    --background: #0f1117;
+    --foreground: #f8fafc;
+    --border: #2d2d2d;
+    --card: #161922;
+    --muted: #64748b;
   }
 
   body {
     color: var(--foreground);
     background: var(--background);
     font-family: var(--font-geist-sans), sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(75, 85, 99, 0.1);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.02);
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(75, 85, 99, 0.5);
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(75, 85, 99, 0.7);
-  }
-
-  .glass-card {
-    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
-  }
-
-  .glass-card-dark {
-    @apply bg-black/20 backdrop-blur-lg border border-white/10 shadow-2xl;
-  }
-
-  .glass-button {
-    @apply bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/20 transition-all duration-300;
+    background: rgba(255, 255, 255, 0.2);
   }
 }
 
-.bg-mesh {
-  background-color: var(--background);
-  background-image: 
-    radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-    radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-    radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-  min-height: 100vh;
+/* Utility classes for minimalist UI */
+.border-thin {
+  border: 1px solid var(--border);
+}
+
+.bg-table-header {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.row-hover:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.pill-gray {
+  @apply px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700/50;
+}
+
+.btn-minimal {
+  @apply p-1.5 rounded border border-transparent text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-all;
+}
+
+.status-indicator {
+  @apply w-1.5 h-1.5 rounded-full;
 }

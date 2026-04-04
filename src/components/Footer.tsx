@@ -1,41 +1,41 @@
 import { useTranslations } from 'next-intl';
 
 export function Footer() {
-  const t = useTranslations();
-  const disclaimerItems = t.raw('footer.disclaimer.items') as string[];
+  const _t = useTranslations();
+  const disclaimerItems = _t.raw('footer.disclaimer.items') as string[];
 
   return (
-    <footer className="mt-16 border-t border-white/5 pt-12 pb-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <footer className="mt-16 border-t border-[#2d2d2d] pt-8 pb-12">
+      <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {/* Author Information */}
-          <div>
-            <h3 className="text-lg font-bold text-slate-100 mb-6 tracking-tight">{t('footer.about.title')}</h3>
-            <div className="space-y-3">
-              <p className="text-slate-400 leading-relaxed">
-                {t('footer.about.author')}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">About</h3>
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-zinc-400">
+                Developed by 
                 <a 
                   href="https://github.com/sapthesh"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors duration-200 ml-1"
+                  className="text-cyan-500 hover:text-cyan-400 ml-1 transition-colors"
                 >
                   Sapthesh (@sapthesh)
                 </a>
               </p>
-              <p className="text-slate-400 leading-relaxed">
-                {t('footer.about.license')}
+              <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                Distributed under MIT License
               </p>
             </div>
           </div>
 
           {/* Disclaimer */}
-          <div>
-            <h3 className="text-lg font-bold text-slate-100 mb-6 tracking-tight">{t('footer.disclaimer.title')}</h3>
-            <div className="space-y-3 text-slate-400 text-sm leading-relaxed">
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Disclaimer</h3>
+            <div className="space-y-2">
               {disclaimerItems.map((item: string, index: number) => (
-                <p key={index} className="flex items-start">
-                  <span className="mr-2 text-cyan-500/50">•</span>
+                <p key={index} className="text-[10px] font-bold text-zinc-500 flex items-start leading-tight">
+                  <span className="mr-2 text-zinc-700 opacity-50">/</span>
                   {item}
                 </p>
               ))}
@@ -43,31 +43,24 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Copyright Information */}
-        <div className="mt-12 pt-8 border-t border-white/5">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <p className="text-slate-500 text-sm font-medium">
-              {t('footer.copyright', { year: new Date().getFullYear() })}
-            </p>
-            <div className="flex items-center space-x-6">
-              <a
-                href="https://github.com/sapthesh/Ollama-Server"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-500 hover:text-cyan-400 text-sm font-medium transition-all duration-200"
-              >
-                GitHub
-              </a>
-              <span className="text-slate-800">|</span>
-              <a
-                href="https://github.com/sapthesh"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-500 hover:text-cyan-400 text-sm font-medium transition-all duration-200"
-              >
-                MIT License
-              </a>
-            </div>
+        {/* Bottom Bar */}
+        <div className="mt-12 pt-6 border-t border-[#2d2d2d]/30 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.2em]">
+            &copy; {new Date().getFullYear()} OLLAMA MONITOR // BUILD 15.1.9
+          </p>
+          <div className="flex items-center space-x-4">
+            <a
+              href="https://github.com/sapthesh/Ollama-Server"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[9px] font-black text-zinc-600 hover:text-cyan-500 uppercase tracking-widest transition-colors"
+            >
+              Repository
+            </a>
+            <span className="text-zinc-900">|</span>
+            <span className="text-[9px] font-black text-zinc-800 uppercase tracking-widest">
+              Status: Operational
+            </span>
           </div>
         </div>
       </div>

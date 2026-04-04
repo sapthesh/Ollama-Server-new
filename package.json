@@ -14,10 +14,11 @@
   "dependencies": {
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
+    "@supabase/supabase-js": "^2.101.1",
     "@types/axios": "^0.9.36",
     "axios": "^1.7.9",
     "date-fns": "^4.1.0",
-    "next": "15.1.9",
+    "next": "^15.1.9",
     "next-intl": "^3.26.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

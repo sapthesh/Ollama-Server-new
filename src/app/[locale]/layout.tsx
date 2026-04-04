@@ -54,7 +54,7 @@ export default async function RootLayout(props: RootLayoutProps) {
 
   return (
     <html lang={params.locale}>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-mesh`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <NextIntlClientProvider
           locale={params.locale}
           messages={messages}
