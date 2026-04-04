@@ -1,59 +1,43 @@
-# Ollama Node Monitor (Architectural Overhaul)
+# Ollama Node Monitor (Streaming Edition)
 
-A high-performance, minimalist monitoring dashboard for Ollama nodes, redesigned for speed, utility, and real-time governance.
+A high-performance monitoring dashboard for Ollama nodes, featuring real-time streaming discovery, automatic pruning, and a minimalist Light/Dark UI.
 
 ---
 
-## 🔥 New Architecture: Immediate Pruning
+## 🔥 New Feature: Real-Time Streaming Discovery
 
-This version introduces a "Fail-Fast" backend discovery model:
-- **Real-time Deletion**: If a node returns a failure during health check, it is **instantly deleted** from the Supabase database.
-- **Fail-Fast Addition**: New nodes are validated before being saved. If the initial ping fails, the node is rejected.
-- **Minimalist Design**: Stripped of all glassmorphism and heavy animations, the UI is built for high-density monitoring using a "Utility-First" dark theme (#0f1117).
+The discovery system has been re-engineered for transparency and speed:
+- **Streaming Response**: The `/api/nodes/discover` endpoint now streams progress updates in real-time.
+- **Progress Tracking**: Monitor scan progress, success, and pruning status live on the new `/status` dashboard.
+- **Privacy Masking**: Node IPs are automatically masked in the activity logs (e.g., `192.168.x.x`) to maintain security.
+- **Fail-Fast Performance**: Strict 5-second timeout per IP prevents discovery from hanging on unreachable servers.
+
+---
+
+## ⚡ Immediate Pruning Architecture
+
+This version maintains a high-integrity database:
+- **Auto-Deletion**: If a node returns a timeout or non-200 status during discovery, it is **instantly deleted** from the Supabase database.
+- **Single Source of Truth**: Only nodes that pass the `/api/tags` handshake are persisted.
+- **Ephemeral Logs**: Activity logs are stored in local state and auto-purged after 1 hour or upon session closure.
+
+---
+
+## 🎨 Minimalist UI / Multi-Theme Support
+
+Now featuring a high-density, utility-first theme with full Light/Dark mode support.
+- **Light Mode**: Paper-like aesthetic (#f9fafb) for maximum readability in bright environments.
+- **Dark Mode**: Midnight theme (#0f1117) with subtle borders for high-focus monitoring.
+- **Theme Toggle**: Switch modes instantly using the minimalist toggle in the global status bar.
 
 ---
 
 ## 🛠 Technology Stack
 
-- **Framework**: [Next.js 15.1.9](https://nextjs.org/) (Security Patched)
-- **Database**: [Supabase](https://supabase.com/) (PostgreSQL)
-- **Styling**: Tailwind CSS (Minimalist utility-first)
-- **Components**: [Headless UI](https://headlessui.com/) & [Heroicons](https://heroicons.com/)
-
----
-
-## 🚀 Supabase Integration
-
-The app now uses Supabase for persistent, global node storage.
-
-### Environment Variables
-
-To run this project, you will need to add the following environment variables to your `.env.local` or Vercel Dashboard:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=your-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-### Table Schema
-
-Ensure your Supabase project has a `nodes` table with the following structure:
-
-| Column | Type | Default |
-| :--- | :--- | :--- |
-| `server` | text (unique) | - |
-| `models` | text[] | [] |
-| `tps` | float8 | 0 |
-| `lastUpdate` | timestamptz | now() |
-| `status` | text | 'success' |
-
----
-
-## 📅 Maintenance & Monitoring
-
-- **Status Filters**: Instantly toggle between `All`, `Online`, and `Offline` nodes.
-- **Global Stats**: Real-time counter of total nodes vs. online nodes in the top bar.
-- **Server Actions**: Discovery and pruning are handled via high-performance server-side interactions.
+- **Framework**: Next.js 15.1.9 (Security Patched)
+- **Database**: Supabase (PostgreSQL)
+- **Styling**: Tailwind CSS (DarkMode: 'class')
+- **Icons**: Heroicons
 
 ---
 
@@ -64,13 +48,15 @@ npm install
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000/) to view the application.
+1. Add your Supabase credentials to `.env.local`.
+2. Enter your node IPs in the dashboard.
+3. Watch the real-time progress on the `/status` page.
 
 ---
 
 ## 🛡 Security
 
-Updated to **Next.js 15.1.9** to mitigate **CVE-2025-66478**. Strictly enforced underscore-prefixed unused variables (`_var`) for clean production builds.
+Updated to **Next.js 15.1.9** to mitigate **CVE-2025-66478**. Strictly enforced underscore-prefixed unused variables for clean production builds.
 
 ## 📄 License
 

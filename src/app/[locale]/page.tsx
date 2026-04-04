@@ -1,21 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { ModelFilter } from '@/components/ModelFilter';
 import { ServiceList } from '@/components/ServiceList';
 import { Footer } from '@/components/Footer';
 import { OllamaService, SortField, SortOrder } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export default function Home() {
-  const _t = useTranslations();
+  const router = useRouter();
   const [services, setServices] = useState<OllamaService[]>([]);
-  const [countdown, setCountdown] = useState(0);
-  const [detectingServices, setDetectingServices] = useState<Set<string>>(new Set());
-  const [detectedResults, setDetectedResults] = useState<OllamaService[]>([]);
   const [newServerUrl, setNewServerUrl] = useState('');
+  const [isNavigating, setIsNavigating] = useState(false);
   
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('tps');
@@ -97,94 +96,23 @@ export default function Home() {
     }
   };
 
-  const handleDetect = useCallback(async (urls: string[]): Promise<void> => {
-    try {
-      setDetectingServices(new Set(urls));
-      
-      for (const url of urls) {
-        try {
-          // Fail-Fast: Ping before saving
-          const response = await fetch('/api/detect', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
-          });
-
-          const result = await response.json();
-          
-          if (result.status === 'error') {
-            console.log(`Node ${url} is offline. Immediate pruning...`);
-            await removeNode(url);
-            setDetectedResults(prev => [...prev, result]);
-            continue;
-          }
-
-          // If alive, upsert to Supabase
-          if (!supabase) {
-            console.warn('Supabase not initialized, skipping persistence');
-            continue;
-          }
-
-          const { error } = await supabase
-            .from('nodes')
-            .upsert({
-              server: url,
-              models: result.models,
-              tps: result.tps,
-              lastUpdate: new Date().toISOString(),
-              status: result.isFake ? 'fake' : 'success'
-            }, { onConflict: 'server' });
-
-          if (error) throw error;
-
-          setServices(prev => {
-            const exists = prev.some(s => s.server === url);
-            if (exists) {
-              return prev.map(s => s.server === url ? { ...result, loading: false } : s);
-            }
-            return [{ ...result, loading: false }, ...prev];
-          });
-
-          setDetectedResults(prev => {
-            const next = prev.filter(r => r.server !== url);
-            return [...next, result];
-          });
-
-        } catch (error) {
-          console.error(`Detection/Upsert error: ${url}`, error);
-          await removeNode(url);
-        } finally {
-          setDetectingServices(prev => {
-            const next = new Set(prev);
-            next.delete(url);
-            return next;
-          });
-        }
-      }
-      
-      setCountdown(5);
-      fetchNodes(); // Refresh list after detection batch
-    } catch (error) {
-      console.error('Error during detection process:', error);
-      setDetectingServices(new Set());
-    }
-  }, [fetchNodes]);
-
   const handleAddServer = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newServerUrl.trim()) return;
+    if (!newServerUrl.trim() || isNavigating) return;
     
+    setIsNavigating(true);
     let url = newServerUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `http://${url}`;
     }
     
-    handleDetect([url]);
-    setNewServerUrl('');
+    // Minimalist transition: Redirect to status page for real-time monitoring
+    router.push(`/status?urls=${encodeURIComponent(url)}`);
   };
 
   const handleBenchmark = async (url: string) => {
-    await handleDetect([url]);
+    setIsNavigating(true);
+    router.push(`/status?urls=${encodeURIComponent(url)}`);
   };
 
   useEffect(() => {
@@ -200,15 +128,6 @@ export default function Home() {
     });
     setAvailableModels(Array.from(models).sort());
   }, [services]);
-
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setInterval(() => {
-        setCountdown(prev => prev - 1);
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [countdown]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -237,13 +156,15 @@ export default function Home() {
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
-    <main className="min-h-screen bg-[#0f1117]">
+    <main className="min-h-screen bg-background dark:bg-[#0f1117] text-foreground transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Header
-          countdown={countdown}
-          detectingServices={detectingServices}
-          detectedResults={detectedResults}
-          onDetect={handleDetect}
+          countdown={0}
+          detectingServices={new Set()}
+          detectedResults={[]}
+          onDetect={async (urls) => {
+            router.push(`/status?urls=${encodeURIComponent(urls.join(','))}`);
+          }}
           totalNodes={totalCount}
           onlineNodes={services.filter(s => s.status === 'success' || s.status === 'fake').length}
         />
@@ -256,22 +177,28 @@ export default function Home() {
               value={newServerUrl}
               onChange={(e) => setNewServerUrl(e.target.value)}
               placeholder="ENTER NODE IP (E.G. 1.2.3.4:11434)"
-              className="block w-full pl-6 pr-32 py-3 bg-zinc-900 border border-[#2d2d2d] rounded-sm 
-                text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-zinc-500 
-                transition-all text-xs font-bold uppercase tracking-widest"
+              disabled={isNavigating}
+              className="block w-full pl-6 pr-32 py-3 bg-white dark:bg-zinc-900 border border-border rounded-sm 
+                text-foreground placeholder-zinc-500 dark:placeholder-zinc-700 focus:outline-none focus:border-cyan-500/50 
+                transition-all text-xs font-bold uppercase tracking-widest disabled:opacity-50"
             />
             <button
               type="submit"
-              className="absolute right-1 px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 
-                text-cyan-500 text-[10px] font-black uppercase tracking-widest rounded-sm border border-[#2d2d2d]
-                transition-all active:scale-95"
+              disabled={!newServerUrl.trim() || isNavigating}
+              className="absolute right-1 px-4 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 
+                text-cyan-600 dark:text-cyan-500 text-[10px] font-black uppercase tracking-widest rounded-sm border border-border
+                transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              Add Node
+              {isNavigating ? (
+                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin mx-auto" />
+              ) : (
+                'Add Node'
+              )}
             </button>
           </form>
         </div>
 
-        <div className="border border-[#2d2d2d] rounded-sm overflow-hidden mb-6 bg-zinc-900/20">
+        <div className="border border-border rounded-sm overflow-hidden mb-6 bg-white/5 dark:bg-zinc-900/20">
           <ModelFilter
             selectedModels={selectedModels}
             availableModels={availableModels}
