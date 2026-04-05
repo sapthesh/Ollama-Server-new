@@ -12,6 +12,11 @@ export const maxDuration = 60; // Increase Vercel timeout limit
 export async function POST(req: Request) {
   if (!adminSupabase) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 });
   
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const baseUrl = new URL(req.url).origin;
 
   try {
@@ -93,7 +98,10 @@ export async function POST(req: Request) {
       // Non-blocking fetch to self-trigger
       fetch(`${baseUrl}/api/worker/process-queue`, { 
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.ADMIN_PASSWORD}`
+        }
       }).catch(err => console.error('Self-trigger failed:', err));
     } else {
       // Final revalidate of dashboard

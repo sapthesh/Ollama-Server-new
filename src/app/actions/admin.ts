@@ -93,21 +93,31 @@ export async function bulkIngestIPs(rawList: string) {
 }
 
 /**
- * Get Queue Progress
+ * Get Queue Progress & Worker Activity
  */
 export async function getQueueCount() {
-  if (!adminSupabase) return 0;
+  if (!adminSupabase) return { count: 0, lastActive: false };
   try {
     const { count, error } = await adminSupabase
       .from('upload_queue')
-      .select('*', { count: 'estimated', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('status', 'pending');
     
     if (error) throw error;
-    return count || 0;
+
+    // Check if worker was active in last 10 minutes
+    const tenMinsAgo = new Date(Date.now() - 10 * 60000).toISOString();
+    const { data: recentNode } = await adminSupabase
+      .from('nodes')
+      .select('lastUpdate')
+      .gte('lastUpdate', tenMinsAgo)
+      .limit(1);
+
+    const lastActive = !!(recentNode && recentNode.length > 0);
+    return { count: count || 0, lastActive };
   } catch (error) {
     console.error('Queue count error:', error);
-    return 0;
+    return { count: 0, lastActive: false };
   }
 }
 
@@ -175,4 +185,19 @@ export async function getSystemHealth() {
       timestamp: new Date().toISOString(),
     };
   }
+}
+
+/**
+ * Trigger Worker
+ * Safely kicks off the protected background worker API.
+ */
+export async function triggerWorker(origin: string) {
+  if (!ADMIN_PASSWORD) return;
+  fetch(`${origin}/api/worker/process-queue`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${ADMIN_PASSWORD}` 
+    }
+  }).catch(console.error);
 }

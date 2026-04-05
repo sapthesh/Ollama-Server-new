@@ -24,7 +24,8 @@ interface AdminActions {
   purgeStaticCache: () => Promise<{ success: boolean; error?: string }>;
   getSystemHealth: () => Promise<HealthData>;
   bulkIngestIPs: (rawList: string) => Promise<{ success: boolean; count?: number; error?: string }>;
-  getQueueCount: () => Promise<number>;
+  getQueueCount: () => Promise<{ count: number, lastActive: boolean }>;
+  triggerWorker: (origin: string) => Promise<void>;
 }
 
 export function AdminPortalClient() {
@@ -32,6 +33,7 @@ export function AdminPortalClient() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [healthData, setHealthData] = useState<HealthData | null>(null);
   const [queueCount, setQueueCount] = useState<number>(0);
+  const [workerActive, setWorkerActive] = useState<boolean>(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number, total: number } | null>(null);
@@ -50,8 +52,9 @@ export function AdminPortalClient() {
   useEffect(() => {
     if (isAuthorized && actions) {
       const interval = setInterval(async () => {
-        const count = await actions.getQueueCount();
+        const { count, lastActive } = await actions.getQueueCount();
         setQueueCount(count);
+        setWorkerActive(lastActive);
       }, 10000); // 10 seconds
       return () => clearInterval(interval);
     }
@@ -100,7 +103,7 @@ export function AdminPortalClient() {
       setBulkList('');
       setStatus({ type: 'success', message: `QUEUED ${successCount} NODES ACROSS ${chunks.length} CHUNKS` });
       // Trigger background worker
-      fetch('/api/worker/process-queue', { method: 'POST' }).catch(console.error);
+      actions.triggerWorker(window.location.origin);
     } catch (err) {
       console.error('Bulk Upload Failed:', err);
       setStatus({ type: 'error', message: `INGEST FAILED: ${err instanceof Error ? err.message : 'Unknown error'}` });
@@ -210,9 +213,9 @@ export function AdminPortalClient() {
                 <div className="flex items-center space-x-3">
                   <QueueListIcon className="w-6 h-6 text-cyan-500" />
                   <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${queueCount > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${queueCount > 0 ? 'text-emerald-500' : 'text-white/40'}`}>
-                      {queueCount > 0 ? 'WORKER: ACTIVE' : 'WORKER: SLEEPING'}
+                    <div className={`w-2 h-2 rounded-full ${workerActive ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${workerActive ? 'text-emerald-500' : 'text-white/40'}`}>
+                      {workerActive ? 'WORKER: ACTIVE' : 'WORKER: SLEEPING'}
                     </span>
                   </div>
                 </div>
@@ -220,7 +223,7 @@ export function AdminPortalClient() {
                   <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500 bg-cyan-500/10 px-3 py-1">Live Worker Queue</span>
                   <button 
                     onClick={() => {
-                      fetch('/api/worker/process-queue', { method: 'POST' }).catch(console.error);
+                      actions?.triggerWorker(window.location.origin);
                       setStatus({ type: 'success', message: 'WAKE SIGNAL SENT TO WORKER' });
                     }}
                     className="text-[8px] font-black uppercase tracking-widest text-black dark:text-white border border-black/20 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1 transition-all active:scale-95"
@@ -232,6 +235,15 @@ export function AdminPortalClient() {
              <div className="space-y-1">
                 <h2 className="text-[24px] font-black uppercase tracking-tighter">{queueCount.toLocaleString()}</h2>
                 <p className="text-[10px] text-black/50 dark:text-white/30 uppercase tracking-widest font-black leading-relaxed">REMAINING IN UPLOAD_QUEUE // {Math.ceil(queueCount/50)} BATCHES TO GO</p>
+             </div>
+             <div className="space-y-3 pt-2">
+               <div className="flex justify-between text-[10px] uppercase font-black tracking-widest text-black/50 dark:text-white/30 border-t border-black/5 dark:border-white/5 pt-4 mt-4">
+                 <span>{healthData?.count || 0} Processed IPs</span>
+                 <span>{(healthData?.count || 0) + queueCount} Total Ingested IPs</span>
+               </div>
+               <div className="w-full bg-black/5 dark:bg-white/5 h-1">
+                 <div className="bg-cyan-500 h-1 transition-all duration-500" style={{ width: `${(((healthData?.count || 0) / (((healthData?.count || 0) + queueCount) || 1)) * 100).toFixed(1)}%` }} />
+               </div>
              </div>
           </div>
           
