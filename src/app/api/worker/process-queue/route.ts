@@ -3,6 +3,7 @@ import { adminSupabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Increase Vercel timeout limit
 
 /**
  * Hands-Free Recursive Background Worker
@@ -28,9 +29,18 @@ export async function POST(req: Request) {
 
     const ips = queue.map(r => r.raw_ip);
 
-    // 2. Parallel Handshake Verification (5s Timeout)
+    // 1.5 Deduplication Check
+    const { data: existingNodes } = await adminSupabase
+      .from('nodes')
+      .select('server')
+      .in('server', ips);
+
+    const existingIps = new Set((existingNodes || []).map(n => n.server));
+    const newIpsToTest = ips.filter(ip => !existingIps.has(ip));
+
+    // 2. Parallel Handshake Verification (5s Timeout) - Only test new IPs
     const results = await Promise.all(
-      ips.map(async (url) => {
+      newIpsToTest.map(async (url) => {
         const abortController = new AbortController();
         const timeoutId = setTimeout(() => abortController.abort(), 5000);
 

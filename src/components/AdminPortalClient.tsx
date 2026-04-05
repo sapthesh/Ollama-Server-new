@@ -52,7 +52,7 @@ export function AdminPortalClient() {
       const interval = setInterval(async () => {
         const count = await actions.getQueueCount();
         setQueueCount(count);
-      }, 5000);
+      }, 30000); // 30 seconds
       return () => clearInterval(interval);
     }
   }, [isAuthorized, actions]);
@@ -208,7 +208,18 @@ export function AdminPortalClient() {
           <div className="p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 space-y-4">
              <div className="flex items-center justify-between">
                 <QueueListIcon className="w-6 h-6 text-cyan-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500 bg-cyan-500/10 px-3 py-1">Live Worker Queue</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500 bg-cyan-500/10 px-3 py-1">Live Worker Queue</span>
+                  <button 
+                    onClick={() => {
+                      fetch('/api/worker/process-queue', { method: 'POST' }).catch(console.error);
+                      setStatus({ type: 'success', message: 'WAKE SIGNAL SENT TO WORKER' });
+                    }}
+                    className="text-[8px] font-black uppercase tracking-widest text-black dark:text-white border border-black/20 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1 transition-all active:scale-95"
+                  >
+                    Wake Worker
+                  </button>
+                </div>
              </div>
              <div className="space-y-1">
                 <h2 className="text-[24px] font-black uppercase tracking-tighter">{queueCount.toLocaleString()}</h2>
