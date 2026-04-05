@@ -52,7 +52,7 @@ export function AdminPortalClient() {
       const interval = setInterval(async () => {
         const count = await actions.getQueueCount();
         setQueueCount(count);
-      }, 30000); // 30 seconds
+      }, 10000); // 10 seconds
       return () => clearInterval(interval);
     }
   }, [isAuthorized, actions]);
@@ -207,7 +207,15 @@ export function AdminPortalClient() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="p-8 border border-black/10 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/10 space-y-4">
              <div className="flex items-center justify-between">
-                <QueueListIcon className="w-6 h-6 text-cyan-500" />
+                <div className="flex items-center space-x-3">
+                  <QueueListIcon className="w-6 h-6 text-cyan-500" />
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${queueCount > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${queueCount > 0 ? 'text-emerald-500' : 'text-white/40'}`}>
+                      {queueCount > 0 ? 'WORKER: ACTIVE' : 'WORKER: SLEEPING'}
+                    </span>
+                  </div>
+                </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500 bg-cyan-500/10 px-3 py-1">Live Worker Queue</span>
                   <button 

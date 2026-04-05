@@ -2,7 +2,9 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { DashboardClient } from '@/components/DashboardClient';
+import GlobalLoginGate from '@/components/GlobalLoginGate';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 /**
@@ -11,7 +13,14 @@ import { ArrowPathIcon } from '@heroicons/react/24/outline';
  * Strictly exports Next.js segment config to drive dynamic rendering
  * and prevent static build-time caching of the IP list.
  */
-export default function Home() {
+export default async function Home() {
+  const cookieStore = await cookies();
+  const isAuthenticated = cookieStore.get('global_auth')?.value === 'authenticated';
+
+  if (!isAuthenticated) {
+    return <GlobalLoginGate />;
+  }
+
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-black">

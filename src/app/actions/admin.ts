@@ -2,6 +2,7 @@
 
 import { adminSupabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
@@ -11,6 +12,25 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 export async function verifyAdmin(password: string) {
   if (!ADMIN_PASSWORD) return false;
   return password === ADMIN_PASSWORD;
+}
+
+/**
+ * Global Lock: Verify password and set auth cookie.
+ */
+export async function loginGlobal(password: string) {
+  if (!ADMIN_PASSWORD) return { success: false, error: 'Password not configured' };
+  
+  if (password === ADMIN_PASSWORD) {
+    const cookieStore = await cookies();
+    cookieStore.set('global_auth', 'authenticated', {
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+    return { success: true };
+  }
+  return { success: false, error: 'Access Denied' };
 }
 
 /**
@@ -80,7 +100,7 @@ export async function getQueueCount() {
   try {
     const { count, error } = await adminSupabase
       .from('upload_queue')
-      .select('*', { count: 'exact', head: true })
+      .select('*', { count: 'estimated', head: true })
       .eq('status', 'pending');
     
     if (error) throw error;

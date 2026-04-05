@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 export function Footer() {
@@ -61,6 +62,10 @@ export function Footer() {
             <span className="text-[9px] font-black text-zinc-800 uppercase tracking-widest">
               Status: Operational
             </span>
+            <span className="text-zinc-900">|</span>
+            <Link href="/admin-portal" className="text-[9px] font-black text-zinc-800 hover:text-white transition-colors opacity-30 tracking-widest">
+              [MNT]
+            </Link>
           </div>
         </div>
       </div>

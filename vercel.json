@@ -6,5 +6,11 @@
       "src/app/api/update-servers/route.ts": {
         "maxDuration": 50
       }
-    }
+    },
+    "crons": [
+      {
+        "path": "/api/worker/process-queue",
+        "schedule": "* * * * *"
+      }
+    ]
   }
