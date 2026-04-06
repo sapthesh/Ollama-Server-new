@@ -9,7 +9,7 @@ export const maxDuration = 60; // Increase Vercel timeout limit
  * Hands-Free Recursive Background Worker
  * Processes upload_queue in batches of 50 and self-triggers.
  */
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   if (!adminSupabase) return NextResponse.json({ error: 'DB not initialized' }, { status: 500 });
   
   const authHeader = req.headers.get('authorization');
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     if (count && count > 0) {
       // Non-blocking fetch to self-trigger
       fetch(`${baseUrl}/api/worker/process-queue`, { 
-        method: 'POST',
+        method: 'GET',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.ADMIN_PASSWORD}`

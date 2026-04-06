@@ -194,9 +194,8 @@ export async function getSystemHealth() {
 export async function triggerWorker(origin: string) {
   if (!ADMIN_PASSWORD) return;
   fetch(`${origin}/api/worker/process-queue`, {
-    method: 'POST',
+    method: 'GET',
     headers: { 
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${ADMIN_PASSWORD}` 
     }
   }).catch(console.error);

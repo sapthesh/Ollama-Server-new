@@ -1,16 +1,16 @@
 {
-    "functions": {
-      "src/app/api/detect/route.ts": {
-        "maxDuration": 50
-      },
-      "src/app/api/update-servers/route.ts": {
-        "maxDuration": 50
-      }
+  "functions": {
+    "src/app/api/detect/route.ts": {
+      "maxDuration": 50
     },
-    "crons": [
-      {
-        "path": "/api/worker/process-queue",
-        "schedule": "0 0 * * *"
-      }
-    ]
-  }
+    "src/app/api/update-servers/route.ts": {
+      "maxDuration": 50
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/worker/process-queue",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
