@@ -1,7 +1,7 @@
 # Ollama Node Monitor (Streaming Edition)
 
 A high-performance monitoring dashboard for Ollama nodes, featuring real-time streaming discovery, automatic pruning, and a minimalist Light/Dark UI.
-
+ 
 ---
 
 ## 🔥 New Feature: Real-Time Streaming Discovery
